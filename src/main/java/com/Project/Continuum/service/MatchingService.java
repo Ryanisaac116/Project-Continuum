@@ -4,6 +4,7 @@ import com.Project.Continuum.entity.*;
 import com.Project.Continuum.enums.MatchDecisionType;
 import com.Project.Continuum.enums.MatchIntent;
 import com.Project.Continuum.enums.SkillType;
+import com.Project.Continuum.enums.PresenceStatus; // ✅ NEW IMPORT
 import com.Project.Continuum.matching.*;
 import com.Project.Continuum.repository.*;
 import org.springframework.stereotype.Service;
@@ -83,7 +84,12 @@ public class MatchingService {
                     continue;
                 }
 
-                // 3️⃣ Level compatibility
+                // 3️⃣ Presence check (✅ NEW LOGIC)
+                if (teacher.getPresenceStatus() != PresenceStatus.ONLINE) {
+                    continue;
+                }
+
+                // 4️⃣ Level compatibility
                 if (!teacherSkill.getLevel()
                         .canTeach(learnerSkill.getLevel())) {
                     continue;
@@ -119,9 +125,9 @@ public class MatchingService {
            5️⃣ SUCCESS
            ===================================================== */
         return new MatchDecision(
-                MatchDecisionType.OFFLINE_CANDIDATE_FOUND,
+                MatchDecisionType.ONLINE_CANDIDATE_FOUND, // ✅ UPDATED SEMANTICS
                 candidates,
-                "Suitable users found"
+                "Suitable online users found"
         );
     }
 }

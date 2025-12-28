@@ -1,5 +1,6 @@
 package com.Project.Continuum.service;
 
+import com.Project.Continuum.dto.friend.FriendResponse;
 import com.Project.Continuum.entity.Friend;
 import com.Project.Continuum.entity.User;
 import com.Project.Continuum.enums.FriendSource;
@@ -37,7 +38,27 @@ public class FriendService {
         friendRepository.save(friend);
     }
 
-    public List<Friend> getFriends(Long userId) {
-        return friendRepository.findByUser1_IdOrUser2_Id(userId, userId);
+    public List<FriendResponse> getFriends(Long currentUserId) {
+
+        List<Friend> friendships =
+                friendRepository.findByUser1_IdOrUser2_Id(currentUserId, currentUserId);
+
+        return friendships.stream()
+                .map(friend -> {
+
+                    User otherUser =
+                            friend.getUser1().getId().equals(currentUserId)
+                                    ? friend.getUser2()
+                                    : friend.getUser1();
+
+                    return new FriendResponse(
+                            otherUser.getId(),                 // friendUserId
+                            otherUser.getName(),               // name
+                            otherUser.getPresenceStatus()      // 🔥 presence from User
+                    );
+                })
+                .toList();
     }
+
+
 }

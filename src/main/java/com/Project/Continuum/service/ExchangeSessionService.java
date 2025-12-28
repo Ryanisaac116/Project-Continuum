@@ -6,6 +6,7 @@ import com.Project.Continuum.entity.SkillExchangeRequest;
 import com.Project.Continuum.entity.User;
 import com.Project.Continuum.enums.ExchangeIntent;
 import com.Project.Continuum.enums.ExchangeStatus;
+import com.Project.Continuum.enums.PresenceStatus; // ✅ NEW
 import com.Project.Continuum.exception.AccessDeniedException;
 import com.Project.Continuum.exception.BadRequestException;
 import com.Project.Continuum.exception.ResourceNotFoundException;
@@ -23,15 +24,18 @@ public class ExchangeSessionService {
     private final ExchangeSessionRepository exchangeSessionRepository;
     private final SkillExchangeRequestRepository requestRepository;
     private final UserRepository userRepository;
+    private final PresenceService presenceService; // ✅ NEW
 
     public ExchangeSessionService(
             ExchangeSessionRepository exchangeSessionRepository,
             SkillExchangeRequestRepository requestRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            PresenceService presenceService // ✅ NEW
     ) {
         this.exchangeSessionRepository = exchangeSessionRepository;
         this.requestRepository = requestRepository;
         this.userRepository = userRepository;
+        this.presenceService = presenceService;
     }
 
     /* ================= START SESSION ================= */
@@ -120,11 +124,29 @@ public class ExchangeSessionService {
             throw new BadRequestException("Session must be ACCEPTED to activate");
         }
 
+        // 🔒 NEW GUARD: prevent activation if any user is already BUSY
+        User userA = session.getUserA();
+        User userB = session.getUserB();
+
+        if (userA.getPresenceStatus() == PresenceStatus.BUSY
+                || userB.getPresenceStatus() == PresenceStatus.BUSY) {
+            throw new BadRequestException(
+                    "One or more participants are already in another session"
+            );
+        }
+
         session.setStatus(ExchangeStatus.ACTIVE);
         session.setStartedAt(LocalDateTime.now());
 
-        return mapToResponse(exchangeSessionRepository.save(session));
+        ExchangeSession saved = exchangeSessionRepository.save(session);
+
+        // 🔥 AUTO PRESENCE → BUSY
+        presenceService.updatePresence(userA.getId(), PresenceStatus.BUSY);
+        presenceService.updatePresence(userB.getId(), PresenceStatus.BUSY);
+
+        return mapToResponse(saved);
     }
+
 
     /* ================= END SESSION ================= */
 
@@ -143,7 +165,13 @@ public class ExchangeSessionService {
         session.setStatus(ExchangeStatus.COMPLETED);
         session.setEndedAt(LocalDateTime.now());
 
-        return mapToResponse(exchangeSessionRepository.save(session));
+        ExchangeSession saved = exchangeSessionRepository.save(session);
+
+        // 🔥 RESTORE PRESENCE → ONLINE (NEW)
+        presenceService.updatePresence(saved.getUserA().getId(), PresenceStatus.ONLINE);
+        presenceService.updatePresence(saved.getUserB().getId(), PresenceStatus.ONLINE);
+
+        return mapToResponse(saved);
     }
 
     /* ================= HELPERS ================= */
