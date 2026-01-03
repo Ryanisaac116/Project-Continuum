@@ -11,9 +11,12 @@ import java.time.LocalDateTime;
 public class PresenceScheduler {
 
     private final UserRepository userRepository;
+    private final com.Project.Continuum.service.PresenceService presenceService;
 
-    public PresenceScheduler(UserRepository userRepository) {
+    public PresenceScheduler(UserRepository userRepository,
+            com.Project.Continuum.service.PresenceService presenceService) {
         this.userRepository = userRepository;
+        this.presenceService = presenceService;
     }
 
     // runs every 1 minute
@@ -24,6 +27,6 @@ public class PresenceScheduler {
 
         userRepository
                 .findUsersToMarkOffline(cutoff)
-                .forEach(user -> user.setPresenceStatus(PresenceStatus.OFFLINE));
+                .forEach(user -> presenceService.updatePresence(user.getId(), PresenceStatus.OFFLINE));
     }
 }

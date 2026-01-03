@@ -89,6 +89,14 @@ public class User {
         this.lastSeenAt = lastSeenAt;
     }
 
+    public void setAuthProvider(String authProvider) {
+        this.authProvider = authProvider;
+    }
+
+    public void setProviderUserId(String providerUserId) {
+        this.providerUserId = providerUserId;
+    }
+
     @PrePersist
     protected void onCreate() {
         if (this.createdAt == null) {
