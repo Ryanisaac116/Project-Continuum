@@ -15,11 +15,14 @@ public class PresenceService {
 
     private final UserRepository userRepository;
     private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+    private final com.Project.Continuum.store.PresenceStore presenceStore;
 
     public PresenceService(UserRepository userRepository,
-            org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate) {
+            org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate,
+            com.Project.Continuum.store.PresenceStore presenceStore) {
         this.userRepository = userRepository;
         this.messagingTemplate = messagingTemplate;
+        this.presenceStore = presenceStore;
     }
 
     @Transactional
@@ -29,9 +32,16 @@ public class PresenceService {
                 .filter(User::isActive)
                 .orElseThrow(() -> new ResourceNotFoundException("Active user not found"));
 
-        user.setPresenceStatus(status);
+        // Update Store
+        presenceStore.setUserStatus(userId, status);
 
-        PresenceResponse response = new PresenceResponse(user.getId(), user.getPresenceStatus(), user.getLastSeenAt());
+        // Update DB
+        user.setPresenceStatus(status);
+        if (status == PresenceStatus.OFFLINE) {
+            user.setLastSeenAt(LocalDateTime.now());
+        }
+
+        PresenceResponse response = new PresenceResponse(user.getId(), status, user.getLastSeenAt());
         messagingTemplate.convertAndSend("/topic/presence/" + userId, response);
 
         return response;
@@ -44,7 +54,24 @@ public class PresenceService {
                 .filter(User::isActive)
                 .orElseThrow(() -> new ResourceNotFoundException("Active user not found"));
 
-        return new PresenceResponse(user.getId(), user.getPresenceStatus(), user.getLastSeenAt());
+        // Check Store first for real-time status
+        PresenceStatus liveStatus = presenceStore.getStatus(userId);
+
+        // Logic: if Store gives OFFLINE (default), but DB says ONLINE?
+        // We trust Store (in-memory is truth). DB might be stale if server crashed.
+        // We need lastSeen from DB if Store is empty.
+
+        LocalDateTime lastSeenObj = presenceStore.getLastSeen(userId);
+        if (lastSeenObj == null) {
+            lastSeenObj = user.getLastSeenAt();
+        }
+
+        return new PresenceResponse(user.getId(), liveStatus, lastSeenObj);
+    }
+
+    @Transactional
+    public void setUserSession(Long userId, Long sessionId) {
+        presenceStore.setUserSession(userId, sessionId);
     }
 
     @Transactional
@@ -54,16 +81,19 @@ public class PresenceService {
                 .filter(User::isActive)
                 .orElseThrow(() -> new ResourceNotFoundException("Active user not found"));
 
-        user.setLastSeenAt(LocalDateTime.now());
+        // Update Store
+        presenceStore.updateLastSeen(userId);
 
-        // if user was OFFLINE but app is alive again
-        if (user.getPresenceStatus() == PresenceStatus.OFFLINE) {
+        // Check if status needs correction in Store
+        if (presenceStore.getStatus(userId) == PresenceStatus.OFFLINE) {
+            presenceStore.setUserStatus(userId, PresenceStatus.ONLINE);
             user.setPresenceStatus(PresenceStatus.ONLINE);
 
-            PresenceResponse response = new PresenceResponse(user.getId(), user.getPresenceStatus(),
-                    user.getLastSeenAt());
+            PresenceResponse response = new PresenceResponse(user.getId(), PresenceStatus.ONLINE, LocalDateTime.now());
             messagingTemplate.convertAndSend("/topic/presence/" + userId, response);
         }
+
+        user.setLastSeenAt(LocalDateTime.now());
     }
 
 }

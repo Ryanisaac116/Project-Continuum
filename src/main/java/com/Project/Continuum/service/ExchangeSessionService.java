@@ -43,12 +43,10 @@ public class ExchangeSessionService {
     public ExchangeSessionResponse startSession(
             Long requestId,
             Long currentUserId,
-            ExchangeIntent intent
-    ) {
+            ExchangeIntent intent) {
 
         SkillExchangeRequest request = requestRepository.findById(requestId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Exchange request not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Exchange request not found"));
 
         // Only sender or receiver can start session
         if (!request.getSender().getId().equals(currentUserId)
@@ -75,9 +73,7 @@ public class ExchangeSessionService {
                         List.of(
                                 ExchangeStatus.REQUESTED,
                                 ExchangeStatus.ACCEPTED,
-                                ExchangeStatus.ACTIVE
-                        )
-                )
+                                ExchangeStatus.ACTIVE))
                 .ifPresent(s -> {
                     throw new BadRequestException("Session already exists between these users");
                 });
@@ -131,8 +127,7 @@ public class ExchangeSessionService {
         if (userA.getPresenceStatus() == PresenceStatus.BUSY
                 || userB.getPresenceStatus() == PresenceStatus.BUSY) {
             throw new BadRequestException(
-                    "One or more participants are already in another session"
-            );
+                    "One or more participants are already in another session");
         }
 
         session.setStatus(ExchangeStatus.ACTIVE);
@@ -142,11 +137,13 @@ public class ExchangeSessionService {
 
         // 🔥 AUTO PRESENCE → BUSY
         presenceService.updatePresence(userA.getId(), PresenceStatus.BUSY);
+        presenceService.setUserSession(userA.getId(), saved.getId()); // NEW
+
         presenceService.updatePresence(userB.getId(), PresenceStatus.BUSY);
+        presenceService.setUserSession(userB.getId(), saved.getId()); // NEW
 
         return mapToResponse(saved);
     }
-
 
     /* ================= END SESSION ================= */
 
@@ -169,7 +166,10 @@ public class ExchangeSessionService {
 
         // 🔥 RESTORE PRESENCE → ONLINE (NEW)
         presenceService.updatePresence(saved.getUserA().getId(), PresenceStatus.ONLINE);
+        presenceService.setUserSession(saved.getUserA().getId(), null); // NEW
+
         presenceService.updatePresence(saved.getUserB().getId(), PresenceStatus.ONLINE);
+        presenceService.setUserSession(saved.getUserB().getId(), null); // NEW
 
         return mapToResponse(saved);
     }
@@ -178,8 +178,7 @@ public class ExchangeSessionService {
 
     private ExchangeSession getSessionOrThrow(Long sessionId) {
         return exchangeSessionRepository.findById(sessionId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Exchange session not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Exchange session not found"));
     }
 
     private ExchangeSessionResponse mapToResponse(ExchangeSession session) {
@@ -188,7 +187,6 @@ public class ExchangeSessionService {
                 session.getIntent(),
                 session.getStatus(),
                 session.getStartedAt(),
-                session.getEndedAt()
-        );
+                session.getEndedAt());
     }
 }
