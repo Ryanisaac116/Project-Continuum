@@ -7,7 +7,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-
 // SECURITY CONFIG CONTRACT (DO NOT CHANGE):
 // - Stateless JWT auth
 // - Identity = userId only
@@ -31,16 +30,15 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
                 .sessionManagement(sm -> sm
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/auth/**",
                                 "/dev/auth/**",
-                                "/ping"
-                        ).permitAll()
-                        .anyRequest().authenticated()
-                )
+                                "/ping",
+                                "/ws/**")
+                        .permitAll()
+                        .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class).userDetailsService(username -> {
                     throw new UnsupportedOperationException("UserDetailsService is disabled");
                 });

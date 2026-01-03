@@ -14,9 +14,12 @@ import java.time.LocalDateTime;
 public class PresenceService {
 
     private final UserRepository userRepository;
+    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
-    public PresenceService(UserRepository userRepository) {
+    public PresenceService(UserRepository userRepository,
+            org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate) {
         this.userRepository = userRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Transactional
@@ -28,7 +31,10 @@ public class PresenceService {
 
         user.setPresenceStatus(status);
 
-        return new PresenceResponse(user.getId(), user.getPresenceStatus());
+        PresenceResponse response = new PresenceResponse(user.getId(), user.getPresenceStatus(), user.getLastSeenAt());
+        messagingTemplate.convertAndSend("/topic/presence/" + userId, response);
+
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -38,7 +44,7 @@ public class PresenceService {
                 .filter(User::isActive)
                 .orElseThrow(() -> new ResourceNotFoundException("Active user not found"));
 
-        return new PresenceResponse(user.getId(), user.getPresenceStatus());
+        return new PresenceResponse(user.getId(), user.getPresenceStatus(), user.getLastSeenAt());
     }
 
     @Transactional
@@ -53,6 +59,10 @@ public class PresenceService {
         // if user was OFFLINE but app is alive again
         if (user.getPresenceStatus() == PresenceStatus.OFFLINE) {
             user.setPresenceStatus(PresenceStatus.ONLINE);
+
+            PresenceResponse response = new PresenceResponse(user.getId(), user.getPresenceStatus(),
+                    user.getLastSeenAt());
+            messagingTemplate.convertAndSend("/topic/presence/" + userId, response);
         }
     }
 
