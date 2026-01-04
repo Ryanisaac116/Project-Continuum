@@ -4,8 +4,6 @@ import com.Project.Continuum.dto.users.UserResponse;
 import com.Project.Continuum.dto.users.UserUpdateRequest;
 import com.Project.Continuum.security.SecurityUtils;
 import com.Project.Continuum.service.UserService;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController

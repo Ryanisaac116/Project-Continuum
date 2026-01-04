@@ -8,7 +8,27 @@ public class UserSkillCreateRequest {
     private SkillLevel level;
     private SkillType skillType;
 
-    public Long getSkillId() { return skillId; }
-    public SkillLevel getLevel() { return level; }
-    public SkillType getSkillType() { return skillType; }
+    public Long getSkillId() {
+        return skillId;
+    }
+
+    public SkillLevel getLevel() {
+        return level;
+    }
+
+    public SkillType getSkillType() {
+        return skillType;
+    }
+
+    public void setSkillId(Long skillId) {
+        this.skillId = skillId;
+    }
+
+    public void setLevel(SkillLevel level) {
+        this.level = level;
+    }
+
+    public void setSkillType(SkillType skillType) {
+        this.skillType = skillType;
+    }
 }
