@@ -95,11 +95,16 @@ public class ChatService {
                         throw new ResourceNotFoundException("User not found");
                 }
 
-                // We technically don't need to check friendship for history,
-                // but checking if they are the participants in the query is implicitly done by
-                // the query itself.
-                // However, if they unfriend, should they see history? usually yes.
-                // So I won't enforce friend check for reading history, only for sending.
+                // Verify Friendship for history access per Security Requirements
+                User u1 = userId < otherUserId ? userRepository.getReferenceById(userId)
+                                : userRepository.getReferenceById(otherUserId);
+                User u2 = userId < otherUserId ? userRepository.getReferenceById(otherUserId)
+                                : userRepository.getReferenceById(userId);
+
+                if (!friendRepository.existsByUser1_IdAndUser2_IdAndStatus(u1.getId(), u2.getId(),
+                                com.Project.Continuum.enums.FriendStatus.ACCEPTED)) {
+                        throw new AccessDeniedException("You can only view chat history with friends.");
+                }
 
                 return chatMessageRepository.findBySender_IdAndRecipient_IdOrSender_IdAndRecipient_IdOrderBySentAtAsc(
                                 userId, otherUserId,

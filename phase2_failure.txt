@@ -1,0 +1,15 @@
+-------------------------------------------------------------------------------
+Test set: com.Project.Continuum.FriendIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 5, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 7.147 s <<< FAILURE! -- in com.Project.Continuum.FriendIntegrationTest
+com.Project.Continuum.FriendIntegrationTest.testChatAccess_Fail_NotFriends -- Time elapsed: 0.630 s <<< FAILURE!
+java.lang.AssertionError: Status expected:<403> but was:<200>
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.web.servlet.result.StatusResultMatchers.lambda$matcher$9(StatusResultMatchers.java:637)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.Project.Continuum.FriendIntegrationTest.testChatAccess_Fail_NotFriends(FriendIntegrationTest.java:141)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+
