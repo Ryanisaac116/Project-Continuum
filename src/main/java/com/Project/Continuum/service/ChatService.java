@@ -9,7 +9,7 @@ import com.Project.Continuum.exception.ResourceNotFoundException;
 import com.Project.Continuum.repository.ChatMessageRepository;
 import com.Project.Continuum.repository.FriendRepository;
 import com.Project.Continuum.repository.UserRepository;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,12 +22,12 @@ public class ChatService {
         private final ChatMessageRepository chatMessageRepository;
         private final UserRepository userRepository;
         private final FriendRepository friendRepository;
-        private final SimpMessagingTemplate messagingTemplate;
+        private final SimpMessageSendingOperations messagingTemplate;
 
         public ChatService(ChatMessageRepository chatMessageRepository,
                         UserRepository userRepository,
                         FriendRepository friendRepository,
-                        SimpMessagingTemplate messagingTemplate) {
+                        SimpMessageSendingOperations messagingTemplate) {
                 this.chatMessageRepository = chatMessageRepository;
                 this.userRepository = userRepository;
                 this.friendRepository = friendRepository;
@@ -74,11 +74,7 @@ public class ChatService {
                                 "/queue/messages",
                                 response);
 
-                // Also send back to sender via their private queue so their other devices
-                // update?
-                // Or just let the caller handle it (REST response or ACK).
-                // Usually good to ack on socket too if sender used socket.
-                // For simple consistency:
+                // Also send back to sender via their private queue
                 messagingTemplate.convertAndSendToUser(
                                 String.valueOf(sender.getId()),
                                 "/queue/messages",

@@ -5,6 +5,7 @@ import com.Project.Continuum.enums.PresenceStatus;
 import com.Project.Continuum.entity.User;
 import com.Project.Continuum.exception.ResourceNotFoundException;
 import com.Project.Continuum.repository.UserRepository;
+import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,11 +15,11 @@ import java.time.LocalDateTime;
 public class PresenceService {
 
     private final UserRepository userRepository;
-    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+    private final SimpMessageSendingOperations messagingTemplate;
     private final com.Project.Continuum.store.PresenceStore presenceStore;
 
     public PresenceService(UserRepository userRepository,
-            org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate,
+            SimpMessageSendingOperations messagingTemplate,
             com.Project.Continuum.store.PresenceStore presenceStore) {
         this.userRepository = userRepository;
         this.messagingTemplate = messagingTemplate;

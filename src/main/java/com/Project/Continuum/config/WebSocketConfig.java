@@ -8,6 +8,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 
 @Configuration
 @EnableWebSocketMessageBroker
+@org.springframework.context.annotation.Profile("!test")
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override

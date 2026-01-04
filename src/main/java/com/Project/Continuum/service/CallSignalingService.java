@@ -7,7 +7,7 @@ import com.Project.Continuum.exception.AccessDeniedException;
 import com.Project.Continuum.exception.BadRequestException;
 import com.Project.Continuum.exception.ResourceNotFoundException;
 import com.Project.Continuum.repository.ExchangeSessionRepository;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,13 +16,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class CallSignalingService {
 
     private final ExchangeSessionRepository exchangeSessionRepository;
-    private final ExchangeSessionService exchangeSessionService; // Can explicitly call endSession
-    private final SimpMessagingTemplate messagingTemplate;
+    private final ExchangeSessionService exchangeSessionService;
+    private final SimpMessageSendingOperations messagingTemplate;
     private final com.Project.Continuum.store.CallStateStore callStateStore;
 
     public CallSignalingService(ExchangeSessionRepository exchangeSessionRepository,
             ExchangeSessionService exchangeSessionService,
-            SimpMessagingTemplate messagingTemplate,
+            SimpMessageSendingOperations messagingTemplate,
             com.Project.Continuum.store.CallStateStore callStateStore) {
         this.exchangeSessionRepository = exchangeSessionRepository;
         this.exchangeSessionService = exchangeSessionService;
