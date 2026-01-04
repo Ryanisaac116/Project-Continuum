@@ -1,0 +1,11 @@
+-------------------------------------------------------------------------------
+Test set: com.Project.Continuum.ExchangeIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 2, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 6.668 s <<< FAILURE! -- in com.Project.Continuum.ExchangeIntegrationTest
+com.Project.Continuum.ExchangeIntegrationTest.testExchangeLifecycle_HappyPath -- Time elapsed: 0.771 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "com.fasterxml.jackson.databind.JsonNode.asLong()" because the return value of "com.fasterxml.jackson.databind.JsonNode.get(String)" is null
+	at com.Project.Continuum.ExchangeIntegrationTest.testExchangeLifecycle_HappyPath(ExchangeIntegrationTest.java:137)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+
