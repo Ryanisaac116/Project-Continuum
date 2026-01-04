@@ -7,6 +7,16 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * In-Memory Source of Truth for Real-Time Presence.
+ * <p>
+ * This store handles ephemeral status (ONLINE/BUSY).
+ * It delegates persistence of "Last Seen" to the database via PresenceService.
+ * <p>
+ * Concurrency:
+ * Uses ConcurrentHashMap. atomic compute() operations ensure thread safety
+ * when transitioning states (e.g. ONLINE -> BUSY during session start).
+ */
 @Component
 public class PresenceStore {
 

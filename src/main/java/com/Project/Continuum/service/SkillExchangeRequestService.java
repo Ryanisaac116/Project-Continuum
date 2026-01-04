@@ -4,7 +4,7 @@ import com.Project.Continuum.dto.exchange.ExchangeRequestCreateRequest;
 import com.Project.Continuum.dto.exchange.ExchangeRequestResponse;
 import com.Project.Continuum.entity.*;
 import com.Project.Continuum.enums.ExchangeRequestStatus;
-import com.Project.Continuum.enums.FriendSource;
+
 import com.Project.Continuum.enums.SkillType;
 import com.Project.Continuum.exception.BadRequestException;
 import com.Project.Continuum.exception.ResourceNotFoundException;
@@ -22,26 +22,21 @@ public class SkillExchangeRequestService {
     private final UserRepository userRepository;
     private final UserSkillRepository userSkillRepository;
     private final SkillExchangeRequestRepository requestRepository;
-    private final FriendService friendService;
 
     public SkillExchangeRequestService(
             UserRepository userRepository,
             UserSkillRepository userSkillRepository,
-            SkillExchangeRequestRepository requestRepository,
-            FriendService friendService
-    ) {
+            SkillExchangeRequestRepository requestRepository) {
         this.userRepository = userRepository;
         this.userSkillRepository = userSkillRepository;
         this.requestRepository = requestRepository;
-        this.friendService = friendService;
     }
 
     // ---------------- SEND REQUEST ----------------
 
     public ExchangeRequestResponse sendRequest(
             Long senderId,
-            ExchangeRequestCreateRequest request
-    ) {
+            ExchangeRequestCreateRequest request) {
 
         if (senderId.equals(request.getReceiverId())) {
             throw new BadRequestException("Cannot send request to yourself");
@@ -83,8 +78,7 @@ public class SkillExchangeRequestService {
                         senderId,
                         receiver.getId(),
                         senderSkill.getId(),
-                        receiverSkill.getId()
-                )
+                        receiverSkill.getId())
                 .ifPresent(r -> {
                     throw new BadRequestException("Exchange request already exists");
                 });
@@ -119,8 +113,7 @@ public class SkillExchangeRequestService {
     public ExchangeRequestResponse updateStatus(
             Long requestId,
             Long currentUserId,
-            ExchangeRequestStatus status
-    ) {
+            ExchangeRequestStatus status) {
 
         SkillExchangeRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exchange request not found"));
@@ -132,14 +125,6 @@ public class SkillExchangeRequestService {
         // 🔐 Only receiver can accept / reject
         if (!request.getReceiver().getId().equals(currentUserId)) {
             throw new BadRequestException("Only receiver can update request status");
-        }
-
-        if (status == ExchangeRequestStatus.ACCEPTED) {
-            friendService.createFriendship(
-                    request.getSender(),
-                    request.getReceiver(),
-                    FriendSource.EXCHANGE
-            );
         }
 
         request.setStatus(status);
@@ -168,7 +153,6 @@ public class SkillExchangeRequestService {
         requestRepository.save(request);
     }
 
-
     // ---------------- MAPPER ----------------
 
     private ExchangeRequestResponse mapToResponse(SkillExchangeRequest r) {
@@ -178,7 +162,6 @@ public class SkillExchangeRequestService {
                 r.getReceiver().getName(),
                 r.getSenderSkill().getSkill().getName(),
                 r.getReceiverSkill().getSkill().getName(),
-                r.getStatus().name()
-        );
+                r.getStatus().name());
     }
 }

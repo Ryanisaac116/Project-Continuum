@@ -19,96 +19,97 @@ import java.util.List;
 @Service
 public class ChatService {
 
-    private final ChatMessageRepository chatMessageRepository;
-    private final UserRepository userRepository;
-    private final FriendRepository friendRepository;
-    private final SimpMessagingTemplate messagingTemplate;
+        private final ChatMessageRepository chatMessageRepository;
+        private final UserRepository userRepository;
+        private final FriendRepository friendRepository;
+        private final SimpMessagingTemplate messagingTemplate;
 
-    public ChatService(ChatMessageRepository chatMessageRepository,
-            UserRepository userRepository,
-            FriendRepository friendRepository,
-            SimpMessagingTemplate messagingTemplate) {
-        this.chatMessageRepository = chatMessageRepository;
-        this.userRepository = userRepository;
-        this.friendRepository = friendRepository;
-        this.messagingTemplate = messagingTemplate;
-    }
-
-    @Transactional
-    public ChatMessageResponse sendMessage(Long senderId, ChatMessageRequest request) {
-
-        User sender = userRepository.findById(senderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Sender not found"));
-
-        User recipient = userRepository.findById(request.getRecipientId())
-                .orElseThrow(() -> new ResourceNotFoundException("Recipient not found"));
-
-        // Verify Friendship
-        // Use logic similar to FriendService
-        User u1 = sender.getId() < recipient.getId() ? sender : recipient;
-        User u2 = sender.getId() < recipient.getId() ? recipient : sender;
-
-        if (!friendRepository.existsByUser1_IdAndUser2_Id(u1.getId(), u2.getId())) {
-            throw new AccessDeniedException("You can only chat with friends");
+        public ChatService(ChatMessageRepository chatMessageRepository,
+                        UserRepository userRepository,
+                        FriendRepository friendRepository,
+                        SimpMessagingTemplate messagingTemplate) {
+                this.chatMessageRepository = chatMessageRepository;
+                this.userRepository = userRepository;
+                this.friendRepository = friendRepository;
+                this.messagingTemplate = messagingTemplate;
         }
 
-        ChatMessage message = new ChatMessage();
-        message.setSender(sender);
-        message.setRecipient(recipient);
-        message.setContent(request.getContent());
-        message.setSentAt(LocalDateTime.now());
+        @Transactional
+        public ChatMessageResponse sendMessage(Long senderId, ChatMessageRequest request) {
 
-        ChatMessage savedMessage = chatMessageRepository.save(message);
+                User sender = userRepository.findById(senderId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Sender not found"));
 
-        ChatMessageResponse response = new ChatMessageResponse(
-                savedMessage.getId(),
-                savedMessage.getSender().getId(),
-                savedMessage.getRecipient().getId(),
-                savedMessage.getContent(),
-                savedMessage.getSentAt());
+                User recipient = userRepository.findById(request.getRecipientId())
+                                .orElseThrow(() -> new ResourceNotFoundException("Recipient not found"));
 
-        // Broadcast to recipient via Private User Queue
-        messagingTemplate.convertAndSendToUser(
-                String.valueOf(recipient.getId()),
-                "/queue/messages",
-                response);
+                // Verify Friendship
+                // Use logic similar to FriendService
+                User u1 = sender.getId() < recipient.getId() ? sender : recipient;
+                User u2 = sender.getId() < recipient.getId() ? recipient : sender;
 
-        // Also send back to sender via their private queue so their other devices
-        // update?
-        // Or just let the caller handle it (REST response or ACK).
-        // Usually good to ack on socket too if sender used socket.
-        // For simple consistency:
-        messagingTemplate.convertAndSendToUser(
-                String.valueOf(sender.getId()),
-                "/queue/messages",
-                response);
+                if (!friendRepository.existsByUser1_IdAndUser2_IdAndStatus(u1.getId(), u2.getId(),
+                                com.Project.Continuum.enums.FriendStatus.ACCEPTED)) {
+                        throw new AccessDeniedException("You can only chat with friends (Request Accepted)");
+                }
 
-        return response;
-    }
+                ChatMessage message = new ChatMessage();
+                message.setSender(sender);
+                message.setRecipient(recipient);
+                message.setContent(request.getContent());
+                message.setSentAt(LocalDateTime.now());
 
-    @Transactional(readOnly = true)
-    public List<ChatMessageResponse> getChatHistory(Long userId, Long otherUserId) {
+                ChatMessage savedMessage = chatMessageRepository.save(message);
 
-        // Verify user exists
-        if (!userRepository.existsById(otherUserId)) {
-            throw new ResourceNotFoundException("User not found");
+                ChatMessageResponse response = new ChatMessageResponse(
+                                savedMessage.getId(),
+                                savedMessage.getSender().getId(),
+                                savedMessage.getRecipient().getId(),
+                                savedMessage.getContent(),
+                                savedMessage.getSentAt());
+
+                // Broadcast to recipient via Private User Queue
+                messagingTemplate.convertAndSendToUser(
+                                String.valueOf(recipient.getId()),
+                                "/queue/messages",
+                                response);
+
+                // Also send back to sender via their private queue so their other devices
+                // update?
+                // Or just let the caller handle it (REST response or ACK).
+                // Usually good to ack on socket too if sender used socket.
+                // For simple consistency:
+                messagingTemplate.convertAndSendToUser(
+                                String.valueOf(sender.getId()),
+                                "/queue/messages",
+                                response);
+
+                return response;
         }
 
-        // We technically don't need to check friendship for history,
-        // but checking if they are the participants in the query is implicitly done by
-        // the query itself.
-        // However, if they unfriend, should they see history? usually yes.
-        // So I won't enforce friend check for reading history, only for sending.
+        @Transactional(readOnly = true)
+        public List<ChatMessageResponse> getChatHistory(Long userId, Long otherUserId) {
 
-        return chatMessageRepository.findBySender_IdAndRecipient_IdOrSender_IdAndRecipient_IdOrderBySentAtAsc(
-                userId, otherUserId,
-                otherUserId, userId).stream()
-                .map(msg -> new ChatMessageResponse(
-                        msg.getId(),
-                        msg.getSender().getId(),
-                        msg.getRecipient().getId(),
-                        msg.getContent(),
-                        msg.getSentAt()))
-                .toList();
-    }
+                // Verify user exists
+                if (!userRepository.existsById(otherUserId)) {
+                        throw new ResourceNotFoundException("User not found");
+                }
+
+                // We technically don't need to check friendship for history,
+                // but checking if they are the participants in the query is implicitly done by
+                // the query itself.
+                // However, if they unfriend, should they see history? usually yes.
+                // So I won't enforce friend check for reading history, only for sending.
+
+                return chatMessageRepository.findBySender_IdAndRecipient_IdOrSender_IdAndRecipient_IdOrderBySentAtAsc(
+                                userId, otherUserId,
+                                otherUserId, userId).stream()
+                                .map(msg -> new ChatMessageResponse(
+                                                msg.getId(),
+                                                msg.getSender().getId(),
+                                                msg.getRecipient().getId(),
+                                                msg.getContent(),
+                                                msg.getSentAt()))
+                                .toList();
+        }
 }

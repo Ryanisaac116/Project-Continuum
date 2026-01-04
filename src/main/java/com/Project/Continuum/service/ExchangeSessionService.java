@@ -12,29 +12,28 @@ import com.Project.Continuum.exception.BadRequestException;
 import com.Project.Continuum.exception.ResourceNotFoundException;
 import com.Project.Continuum.repository.ExchangeSessionRepository;
 import com.Project.Continuum.repository.SkillExchangeRequestRepository;
-import com.Project.Continuum.repository.UserRepository;
+
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@Transactional
 public class ExchangeSessionService {
 
     private final ExchangeSessionRepository exchangeSessionRepository;
     private final SkillExchangeRequestRepository requestRepository;
-    private final UserRepository userRepository;
     private final PresenceService presenceService; // ✅ NEW
 
     public ExchangeSessionService(
             ExchangeSessionRepository exchangeSessionRepository,
             SkillExchangeRequestRepository requestRepository,
-            UserRepository userRepository,
             PresenceService presenceService // ✅ NEW
     ) {
         this.exchangeSessionRepository = exchangeSessionRepository;
         this.requestRepository = requestRepository;
-        this.userRepository = userRepository;
         this.presenceService = presenceService;
     }
 
@@ -172,6 +171,29 @@ public class ExchangeSessionService {
         presenceService.setUserSession(saved.getUserB().getId(), null); // NEW
 
         return mapToResponse(saved);
+    }
+
+    /* ================= SYSTEM TIMEOUT ================= */
+
+    public void expireSession(Long sessionId) {
+        ExchangeSession session = getSessionOrThrow(sessionId);
+
+        // Race condition check
+        if (session.getStatus() != ExchangeStatus.ACTIVE) {
+            return;
+        }
+
+        session.setStatus(ExchangeStatus.COMPLETED);
+        session.setEndedAt(LocalDateTime.now());
+
+        ExchangeSession saved = exchangeSessionRepository.save(session);
+
+        // RESTORE PRESENCE → ONLINE
+        presenceService.updatePresence(saved.getUserA().getId(), PresenceStatus.ONLINE);
+        presenceService.setUserSession(saved.getUserA().getId(), null);
+
+        presenceService.updatePresence(saved.getUserB().getId(), PresenceStatus.ONLINE);
+        presenceService.setUserSession(saved.getUserB().getId(), null);
     }
 
     /* ================= HELPERS ================= */
