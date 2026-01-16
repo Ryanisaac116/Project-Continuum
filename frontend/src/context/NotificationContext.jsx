@@ -39,6 +39,13 @@ export const NotificationProvider = ({ children }) => {
     const handleNotification = useCallback((notification) => {
         console.log('[NotificationContext] Received:', notification);
 
+        if (notification.type === 'NOTIFICATIONS_CLEARED') {
+            console.log('[NotificationContext] Notification list cleared by server event');
+            setNotifications([]);
+            setUnreadCount(0);
+            return;
+        }
+
         // Add to notifications list
         setNotifications((prev) => [notification, ...prev]);
         setUnreadCount((prev) => prev + 1);
@@ -108,6 +115,16 @@ export const NotificationProvider = ({ children }) => {
         }
     };
 
+    // Clear all notifications
+    const clearAllNotifications = async () => {
+        try {
+            await apiClient.delete('/notifications');
+            // We rely on the WebSocket event to clear the UI to ensure sync
+        } catch (err) {
+            console.error('Failed to clear notifications:', err);
+        }
+    };
+
     // Dismiss toast
     const dismissToast = (toastId) => {
         setToasts((prev) => prev.filter((t) => t.toastId !== toastId));
@@ -119,6 +136,7 @@ export const NotificationProvider = ({ children }) => {
         toasts,
         markAsRead,
         markAllAsRead,
+        clearAllNotifications,
         dismissToast,
     };
 

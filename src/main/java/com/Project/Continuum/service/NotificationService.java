@@ -157,4 +157,19 @@ public class NotificationService {
         }
         notificationRepository.saveAll(unread);
     }
+
+    /**
+     * Clear all notifications for a user.
+     */
+    @Transactional
+    public void clearAllNotifications(Long userId) {
+        notificationRepository.deleteAllByUserId(userId);
+
+        // Broadcast "NOTIFICATIONS_CLEARED" event
+        // We send a Map because it's a special system event, not a Notification entity
+        messagingTemplate.convertAndSendToUser(
+                String.valueOf(userId),
+                "/queue/notifications",
+                java.util.Map.of("type", "NOTIFICATIONS_CLEARED"));
+    }
 }

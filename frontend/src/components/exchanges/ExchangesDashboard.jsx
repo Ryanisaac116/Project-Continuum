@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Toast } from '../ui/Toast';
 import { useAuth } from '../../auth/AuthContext';
 import { exchangeApi } from '../../api/exchange';
+import { addListener } from '../../ws/chatSocket'; // Import listener
 
 /**
  * ExchangesDashboard - User's Exchange Dashboard
@@ -36,24 +37,49 @@ const ExchangesDashboard = () => {
 
   const exchangeState = getExchangeState();
 
-  // Fetch stats on mount
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await exchangeApi.getStats();
-        setStats(res.data);
-      } catch (err) {
-        console.error('Failed to fetch exchange stats:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchStats = async () => {
+    try {
+      const res = await exchangeApi.getStats();
+      setStats(res.data);
+    } catch (err) {
+      console.error('Failed to fetch exchange stats:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Fetch stats on mount and setup listeners
+  useEffect(() => {
     fetchStats();
 
-    // Refresh stats every 30 seconds
+    // Refresh stats every 30 seconds (fallback)
     const interval = setInterval(fetchStats, 30000);
-    return () => clearInterval(interval);
+
+    // Real-time listener: Refresh when a match is found OR session changes
+    const matchUnsub = addListener('match', (data) => {
+      console.log('ExchangesDashboard: Match event received, refreshing stats...');
+      if (data.type === 'MATCH_FOUND') {
+        fetchStats();
+      }
+    });
+
+    const sessionUnsub = addListener('session', (data) => {
+      console.log('ExchangesDashboard: Session event received, refreshing stats...', data);
+      if (data.type === 'SESSION_STARTED' || data.type === 'SESSION_ENDED') {
+        fetchStats();
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      matchUnsub();
+      sessionUnsub();
+    };
+
+    return () => {
+      clearInterval(interval);
+      removeListener();
+    };
   }, []);
 
   // Handle session ended notification from navigation state

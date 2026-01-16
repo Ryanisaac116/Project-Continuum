@@ -16,8 +16,7 @@ public interface UserSkillRepository extends JpaRepository<UserSkill, Long> {
     Optional<UserSkill> findByUser_IdAndSkill_IdAndSkillType(
             Long userId,
             Long skillId,
-            SkillType skillType
-    );
+            SkillType skillType);
 
     // Validate ownership
     Optional<UserSkill> findByIdAndUser_Id(Long id, Long userId);
@@ -27,4 +26,6 @@ public interface UserSkillRepository extends JpaRepository<UserSkill, Long> {
 
     // Matching: who teaches / learns a skill
     List<UserSkill> findBySkill_IdAndSkillType(Long skillId, SkillType skillType);
+
+    boolean existsByUser_IdAndSkill_IdAndSkillType(Long userId, Long skillId, SkillType skillType);
 }

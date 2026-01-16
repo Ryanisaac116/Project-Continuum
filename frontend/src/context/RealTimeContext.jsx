@@ -91,25 +91,91 @@ export const RealTimeProvider = ({ children }) => {
     const setupPresenceSubscriptions = useCallback(() => {
         if (!isChatConnected()) return;
 
-        const currentFriendIds = new Set(friends.map(f => f.friendUserId));
-        const newFriendIds = [...currentFriendIds].filter(id => !friendIdsRef.current.has(id));
+        // Collect all unique user IDs we need to track
+        const allTrackedIds = new Set();
 
-        newFriendIds.forEach(friendId => {
-            const unsub = subscribeToPresence(friendId, (update) => {
+        friends.forEach(f => allTrackedIds.add(f.friendUserId));
+        recentlyMet.forEach(r => allTrackedIds.add(r.metUserId || r.userId)); // Handle both ID formats if any
+
+        // Filter out already subscribed
+        const newIds = [...allTrackedIds].filter(id => !friendIdsRef.current.has(id));
+
+        newIds.forEach(targetId => {
+            const unsub = subscribeToPresence(targetId, (update) => {
+                // Update Friends List
                 setFriends(prev => prev.map(f =>
                     f.friendUserId === update.userId
                         ? { ...f, presenceStatus: update.status, lastSeenAt: update.lastSeenAt }
                         : f
                 ));
+
+                // Update Recently Met List (uses 'presence' field)
+                setRecentlyMet(prev => prev.map(r =>
+                    (r.metUserId === update.userId || r.userId === update.userId)
+                        ? { ...r, presence: update.status }
+                        : r
+                ));
             });
-            presenceUnsubsRef.current.push({ friendId, unsub });
-            friendIdsRef.current.add(friendId);
+            presenceUnsubsRef.current.push({ targetId, unsub });
+            friendIdsRef.current.add(targetId);
         });
 
-        if (newFriendIds.length > 0) {
-            console.log('[RealTime] Subscribed to', newFriendIds.length, 'friend(s) presence');
+        if (newIds.length > 0) {
+            console.log('[RealTime] Subscribed to', newIds.length, 'users presence');
         }
-    }, [friends]);
+    }, [friends, recentlyMet]);
+
+    // ==================== ACTIONS ====================
+
+    const refreshFriends = useCallback(async () => {
+        try {
+            const res = await friendsApi.getFriends();
+            setFriends(res.data || []);
+        } catch (err) {
+            console.error('[RealTime] Failed to refresh friends:', err);
+        }
+    }, []);
+
+    const refreshRequests = useCallback(async () => {
+        try {
+            const res = await friendsApi.getPendingRequests();
+            setPendingRequests(res.data || []);
+        } catch (err) {
+            console.error('[RealTime] Failed to refresh requests:', err);
+        }
+    }, []);
+
+    const refreshRecentlyMet = useCallback(async () => {
+        try {
+            const res = await friendsApi.getRecentlyMet();
+            setRecentlyMet(res.data || []);
+        } catch (err) {
+            console.error('[RealTime] Failed to refresh recently met:', err);
+        }
+    }, []);
+
+    const updateFriendPresence = useCallback((userId, status) => {
+        setFriends(prev => prev.map(f =>
+            f.friendUserId === userId ? { ...f, presenceStatus: status } : f
+        ));
+        setRecentlyMet(prev => prev.map(r =>
+            (r.metUserId === userId || r.userId === userId)
+                ? { ...r, presence: status }
+                : r
+        ));
+    }, []);
+
+    const removeFriendLocally = useCallback((userId) => {
+        setFriends(prev => prev.filter(f => f.friendUserId !== userId));
+    }, []);
+
+    const removeRequestLocally = useCallback((requesterId) => {
+        setPendingRequests(prev => prev.filter(r => r.requesterId !== requesterId));
+    }, []);
+
+    const removeRecentlyMetLocally = useCallback((userId) => {
+        setRecentlyMet(prev => prev.filter(r => r.metUserId !== userId));
+    }, []);
 
     // ==================== EVENT HANDLERS ====================
 
@@ -118,12 +184,18 @@ export const RealTimeProvider = ({ children }) => {
 
         switch (event.event || event.type) {
             case 'FRIEND_REQUEST_RECEIVED':
-                setPendingRequests(prev => [...prev, {
-                    requesterId: event.requesterId,
-                    requesterName: event.requesterName,
-                    presence: event.presence,
-                    requestedAt: new Date().toISOString()
-                }]);
+                setPendingRequests(prev => {
+                    // Deduplicate
+                    if (prev.some(r => r.requesterId === event.requesterId)) return prev;
+                    return [...prev, {
+                        requesterId: event.requesterId,
+                        requesterName: event.requesterName,
+                        presence: event.presence,
+                        requestedAt: new Date().toISOString()
+                    }];
+                });
+                // Remove from Recently Met if they send us a request
+                setRecentlyMet(prev => prev.filter(r => r.metUserId !== event.requesterId));
                 break;
 
             case 'FRIEND_REQUEST_ACCEPTED':
@@ -136,6 +208,8 @@ export const RealTimeProvider = ({ children }) => {
                     }];
                 });
                 setPendingRequests(prev => prev.filter(r => r.requesterId !== event.friendId));
+                // Remove from Recently Met if we accept (or they accept)
+                setRecentlyMet(prev => prev.filter(r => r.metUserId !== event.friendId));
                 break;
 
             case 'FRIEND_REQUEST_REJECTED':
@@ -149,6 +223,21 @@ export const RealTimeProvider = ({ children }) => {
                 break;
         }
     }, []);
+
+    const handleSessionEvent = useCallback((event) => {
+        console.log('[RealTime] Session event:', event);
+        // Refresh recently met on any session activity that implies interaction
+        if (['SESSION_STARTED', 'SESSION_ENDED', 'MATCH_FOUND'].includes(event.type) || ['SESSION_STARTED', 'SESSION_ENDED', 'MATCH_FOUND'].includes(event.event)) {
+            refreshRecentlyMet();
+        }
+    }, [refreshRecentlyMet]);
+
+    const handleMatchEvent = useCallback((event) => {
+        console.log('[RealTime] Match event:', event);
+        if (event.type === 'MATCH_FOUND') {
+            refreshRecentlyMet();
+        }
+    }, [refreshRecentlyMet]);
 
     // ==================== WEBSOCKET CONNECTION ====================
 
@@ -177,9 +266,12 @@ export const RealTimeProvider = ({ children }) => {
             }
         );
 
-        // Register friend event listener
+        // Register event listeners
         const friendUnsub = addListener('friend', handleFriendEvent);
-        listenersRef.current.push(friendUnsub);
+        const sessionUnsub = addListener('session', handleSessionEvent);
+        const matchUnsub = addListener('match', handleMatchEvent);
+
+        listenersRef.current.push(friendUnsub, sessionUnsub, matchUnsub);
 
     }, [isAuthenticated, handleFriendEvent]);
 
@@ -243,52 +335,7 @@ export const RealTimeProvider = ({ children }) => {
         };
     }, [cleanupPresenceSubscriptions]);
 
-    // ==================== ACTIONS ====================
 
-    const refreshFriends = useCallback(async () => {
-        try {
-            const res = await friendsApi.getFriends();
-            setFriends(res.data || []);
-        } catch (err) {
-            console.error('[RealTime] Failed to refresh friends:', err);
-        }
-    }, []);
-
-    const refreshRequests = useCallback(async () => {
-        try {
-            const res = await friendsApi.getPendingRequests();
-            setPendingRequests(res.data || []);
-        } catch (err) {
-            console.error('[RealTime] Failed to refresh requests:', err);
-        }
-    }, []);
-
-    const refreshRecentlyMet = useCallback(async () => {
-        try {
-            const res = await friendsApi.getRecentlyMet();
-            setRecentlyMet(res.data || []);
-        } catch (err) {
-            console.error('[RealTime] Failed to refresh recently met:', err);
-        }
-    }, []);
-
-    const updateFriendPresence = useCallback((userId, status) => {
-        setFriends(prev => prev.map(f =>
-            f.friendUserId === userId ? { ...f, presenceStatus: status } : f
-        ));
-    }, []);
-
-    const removeFriendLocally = useCallback((userId) => {
-        setFriends(prev => prev.filter(f => f.friendUserId !== userId));
-    }, []);
-
-    const removeRequestLocally = useCallback((requesterId) => {
-        setPendingRequests(prev => prev.filter(r => r.requesterId !== requesterId));
-    }, []);
-
-    const removeRecentlyMetLocally = useCallback((userId) => {
-        setRecentlyMet(prev => prev.filter(r => r.metUserId !== userId));
-    }, []);
 
     const value = {
         isConnected,

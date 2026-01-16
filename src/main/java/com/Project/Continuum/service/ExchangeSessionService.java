@@ -7,6 +7,7 @@ import com.Project.Continuum.entity.SkillExchangeRequest;
 import com.Project.Continuum.entity.User;
 import com.Project.Continuum.enums.ExchangeIntent;
 import com.Project.Continuum.enums.ExchangeStatus;
+import com.Project.Continuum.enums.NotificationType; // ✅ NEW
 import com.Project.Continuum.enums.PresenceStatus; // ✅ NEW
 import com.Project.Continuum.exception.AccessDeniedException;
 import com.Project.Continuum.exception.BadRequestException;
@@ -33,6 +34,7 @@ public class ExchangeSessionService {
     private final CallService callService;
     private final UserRepository userRepository;
     private final SimpMessageSendingOperations messagingTemplate;
+    private final NotificationService notificationService;
 
     public ExchangeSessionService(
             ExchangeSessionRepository exchangeSessionRepository,
@@ -40,13 +42,15 @@ public class ExchangeSessionService {
             PresenceService presenceService,
             CallService callService,
             UserRepository userRepository,
-            SimpMessageSendingOperations messagingTemplate) {
+            SimpMessageSendingOperations messagingTemplate,
+            NotificationService notificationService) {
         this.exchangeSessionRepository = exchangeSessionRepository;
         this.requestRepository = requestRepository;
         this.presenceService = presenceService;
         this.callService = callService;
         this.userRepository = userRepository;
         this.messagingTemplate = messagingTemplate;
+        this.notificationService = notificationService;
     }
 
     /* ================= GET SESSION DETAILS ================= */
@@ -118,7 +122,20 @@ public class ExchangeSessionService {
         session.setIntent(intent);
         session.setStatus(ExchangeStatus.REQUESTED);
 
-        return mapToResponse(exchangeSessionRepository.save(session));
+        ExchangeSession savedSession = exchangeSessionRepository.save(session);
+        ExchangeSessionResponse response = mapToResponse(savedSession);
+
+        // 🔥 Broadcast REQUESTED to receiver
+        messagingTemplate.convertAndSendToUser(
+                savedSession.getUserB().getId().toString(),
+                "/queue/session",
+                Map.of(
+                        "type", "SESSION_REQUESTED",
+                        "sessionId", savedSession.getId(),
+                        "requesterId", savedSession.getUserA().getId(),
+                        "requesterName", savedSession.getUserA().getName()));
+
+        return response;
     }
 
     /**
@@ -161,7 +178,12 @@ public class ExchangeSessionService {
         presenceService.updatePresence(userAId, PresenceStatus.IN_SESSION);
         presenceService.updatePresence(userBId, PresenceStatus.IN_SESSION);
 
-        return exchangeSessionRepository.save(session);
+        ExchangeSession savedSession = exchangeSessionRepository.save(session);
+
+        // MatchFound handles the notification for this usually, but let's be consistent
+        // No broadbast here to avoid double notification with MATCH_FOUND
+
+        return savedSession;
     }
 
     /* ================= ACCEPT SESSION ================= */
@@ -179,7 +201,27 @@ public class ExchangeSessionService {
         }
 
         session.setStatus(ExchangeStatus.ACCEPTED);
-        return mapToResponse(exchangeSessionRepository.save(session));
+        ExchangeSession savedSession = exchangeSessionRepository.save(session);
+        ExchangeSessionResponse response = mapToResponse(savedSession);
+
+        // 🔥 Broadcast ACCEPTED to requester
+        // The requester is the one who created the request.
+        // If UserA started (requested), UserB accepts. We notify UserA.
+        // UserA is session.getUserA() usually?
+        // Wait, startSession logic: UserA/B are sorted.
+        // session.getRequest().getSender() is the original requester.
+
+        Long requesterId = session.getRequest().getSender().getId();
+
+        messagingTemplate.convertAndSendToUser(
+                requesterId.toString(),
+                "/queue/session",
+                Map.of(
+                        "type", "SESSION_ACCEPTED",
+                        "sessionId", savedSession.getId(),
+                        "accepterId", currentUserId));
+
+        return response;
     }
 
     /* ================= ACTIVATE SESSION ================= */
@@ -218,7 +260,41 @@ public class ExchangeSessionService {
         presenceService.updatePresence(userB.getId(), PresenceStatus.BUSY);
         presenceService.setUserSession(userB.getId(), saved.getId()); // NEW
 
+        broadcastSessionStarted(saved);
+
         return mapToResponse(saved);
+    }
+
+    // Helper to broadcast start & notify
+    private void broadcastSessionStarted(ExchangeSession session) {
+        // 1. Data Broadcast (for dashboard/state)
+        Map<String, Object> event = Map.of(
+                "type", "SESSION_STARTED",
+                "sessionId", session.getId());
+
+        messagingTemplate.convertAndSendToUser(
+                session.getUserA().getId().toString(),
+                "/queue/session",
+                event);
+        messagingTemplate.convertAndSendToUser(
+                session.getUserB().getId().toString(),
+                "/queue/session",
+                event);
+
+        // 2. User Notification (Toast/History)
+        notificationService.createNotification(
+                session.getUserA().getId(),
+                NotificationType.MATCH_FOUND, // Or similar type
+                "Exchange Started",
+                "Your session with " + session.getUserB().getName() + " has started.",
+                "{\"sessionId\":" + session.getId() + "}");
+
+        notificationService.createNotification(
+                session.getUserB().getId(),
+                NotificationType.MATCH_FOUND,
+                "Exchange Started",
+                "Your session with " + session.getUserA().getName() + " has started.",
+                "{\"sessionId\":" + session.getId() + "}");
     }
 
     /* ================= END SESSION ================= */

@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
  * Desktop: Dropdown panel positioned right
  */
 const NotificationCenter = () => {
-    const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+    const { notifications, unreadCount, markAsRead, markAllAsRead, clearAllNotifications } = useNotifications();
     const [isOpen, setIsOpen] = useState(false);
     const buttonRef = useRef(null);
     const panelRef = useRef(null);
@@ -143,6 +143,19 @@ const NotificationCenter = () => {
                                         className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium transition-colors"
                                     >
                                         Mark all read
+                                    </button>
+                                )}
+                                {notifications.length > 0 && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (confirm('Clear all notifications?')) {
+                                                clearAllNotifications();
+                                            }
+                                        }}
+                                        className="text-xs text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors"
+                                    >
+                                        Clear all
                                     </button>
                                 )}
                                 <button

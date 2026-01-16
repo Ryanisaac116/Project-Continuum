@@ -20,126 +20,121 @@ import java.util.List;
 @Transactional
 public class UserSkillService {
 
-    private final UserRepository userRepository;
-    private final SkillRepository skillRepository;
-    private final UserSkillRepository userSkillRepository;
+        private final UserRepository userRepository;
+        private final SkillRepository skillRepository;
+        private final UserSkillRepository userSkillRepository;
 
-    public UserSkillService(
-            UserRepository userRepository,
-            SkillRepository skillRepository,
-            UserSkillRepository userSkillRepository
-    ) {
-        this.userRepository = userRepository;
-        this.skillRepository = skillRepository;
-        this.userSkillRepository = userSkillRepository;
-    }
-
-    // ---------------- ADD SKILL ----------------
-
-    public UserSkillResponse addSkill(Long userId, UserSkillCreateRequest request) {
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        Skill skill = skillRepository.findById(request.getSkillId())
-                .orElseThrow(() -> new ResourceNotFoundException("Skill not found"));
-
-        userSkillRepository
-                .findByUser_IdAndSkill_IdAndSkillType(
-                        userId,
-                        request.getSkillId(),
-                        request.getSkillType()
-                )
-                .ifPresent(us -> {
-                    throw new BadRequestException("Skill already added for this user");
-                });
-
-        UserSkill userSkill = new UserSkill();
-        userSkill.setUser(user);
-        userSkill.setSkill(skill);
-        userSkill.setLevel(request.getLevel());
-        userSkill.setSkillType(request.getSkillType());
-
-        return mapToResponse(userSkillRepository.save(userSkill));
-    }
-
-    // ---------------- GET USER SKILLS ----------------
-
-    @Transactional(readOnly = true)
-    public List<UserSkillResponse> getUserSkills(Long userId) {
-
-        userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        return userSkillRepository.findByUser_Id(userId)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
-    }
-
-    // ---------------- UPDATE USER SKILL ----------------
-
-    public UserSkillResponse updateUserSkill(
-            Long userId,
-            Long userSkillId,
-            UserSkillUpdateRequest request
-    ) {
-
-        UserSkill userSkill = userSkillRepository.findById(userSkillId)
-                .orElseThrow(() -> new ResourceNotFoundException("User skill not found"));
-
-        if (!userSkill.getUser().getId().equals(userId)) {
-            throw new BadRequestException("Skill does not belong to user");
+        public UserSkillService(
+                        UserRepository userRepository,
+                        SkillRepository skillRepository,
+                        UserSkillRepository userSkillRepository) {
+                this.userRepository = userRepository;
+                this.skillRepository = skillRepository;
+                this.userSkillRepository = userSkillRepository;
         }
 
-        if (request.getLevel() != null) {
-            userSkill.setLevel(request.getLevel());
+        // ---------------- ADD SKILL ----------------
+
+        public UserSkillResponse addSkill(Long userId, UserSkillCreateRequest request) {
+
+                User user = userRepository.findById(userId)
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+                Skill skill = skillRepository.findById(request.getSkillId())
+                                .orElseThrow(() -> new ResourceNotFoundException("Skill not found"));
+
+                userSkillRepository
+                                .findByUser_IdAndSkill_IdAndSkillType(
+                                                userId,
+                                                request.getSkillId(),
+                                                request.getSkillType())
+                                .ifPresent(us -> {
+                                        throw new BadRequestException("Skill already added for this user");
+                                });
+
+                UserSkill userSkill = new UserSkill();
+                userSkill.setUser(user);
+                userSkill.setSkill(skill);
+                userSkill.setLevel(request.getLevel());
+                userSkill.setSkillType(request.getSkillType());
+
+                return mapToResponse(userSkillRepository.save(userSkill));
         }
 
-        if (request.getSkillType() != null &&
-                request.getSkillType() != userSkill.getSkillType()) {
+        // ---------------- GET USER SKILLS ----------------
 
-            userSkillRepository
-                    .findByUser_IdAndSkill_IdAndSkillType(
-                            userId,
-                            userSkill.getSkill().getId(),
-                            request.getSkillType()
-                    )
-                    .ifPresent(us -> {
-                        throw new BadRequestException(
-                                "User already has this skill with the given type"
-                        );
-                    });
+        @Transactional(readOnly = true)
+        public List<UserSkillResponse> getUserSkills(Long userId) {
 
-            userSkill.setSkillType(request.getSkillType());
+                userRepository.findById(userId)
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+                return userSkillRepository.findByUser_Id(userId)
+                                .stream()
+                                .map(this::mapToResponse)
+                                .toList();
         }
 
-        return mapToResponse(userSkillRepository.save(userSkill));
-    }
+        // ---------------- UPDATE USER SKILL ----------------
 
-    // ---------------- DELETE USER SKILL ----------------
+        public UserSkillResponse updateUserSkill(
+                        Long userId,
+                        Long userSkillId,
+                        UserSkillUpdateRequest request) {
 
-    public void deleteUserSkill(Long userId, Long userSkillId) {
+                UserSkill userSkill = userSkillRepository.findById(userSkillId)
+                                .orElseThrow(() -> new ResourceNotFoundException("User skill not found"));
 
-        UserSkill userSkill = userSkillRepository.findById(userSkillId)
-                .orElseThrow(() -> new ResourceNotFoundException("User skill not found"));
+                if (!userSkill.getUser().getId().equals(userId)) {
+                        throw new BadRequestException("Skill does not belong to user");
+                }
 
-        if (!userSkill.getUser().getId().equals(userId)) {
-            throw new BadRequestException("Skill does not belong to user");
+                if (request.getLevel() != null) {
+                        userSkill.setLevel(request.getLevel());
+                }
+
+                if (request.getSkillType() != null &&
+                                request.getSkillType() != userSkill.getSkillType()) {
+
+                        userSkillRepository
+                                        .findByUser_IdAndSkill_IdAndSkillType(
+                                                        userId,
+                                                        userSkill.getSkill().getId(),
+                                                        request.getSkillType())
+                                        .ifPresent(us -> {
+                                                throw new BadRequestException(
+                                                                "User already has this skill with the given type");
+                                        });
+
+                        userSkill.setSkillType(request.getSkillType());
+                }
+
+                return mapToResponse(userSkillRepository.save(userSkill));
         }
 
-        userSkillRepository.delete(userSkill);
-    }
+        // ---------------- DELETE USER SKILL ----------------
 
-    // ---------------- MAPPER ----------------
+        public void deleteUserSkill(Long userId, Long userSkillId) {
 
-    private UserSkillResponse mapToResponse(UserSkill us) {
-        return new UserSkillResponse(
-                us.getId(),
-                us.getSkill().getName(),
-                us.getSkill().getCategory(),
-                us.getLevel().name(),
-                us.getSkillType().name()
-        );
-    }
+                UserSkill userSkill = userSkillRepository.findById(userSkillId)
+                                .orElseThrow(() -> new ResourceNotFoundException("User skill not found"));
+
+                if (!userSkill.getUser().getId().equals(userId)) {
+                        throw new BadRequestException("Skill does not belong to user");
+                }
+
+                userSkillRepository.delete(userSkill);
+        }
+
+        // ---------------- MAPPER ----------------
+
+        private UserSkillResponse mapToResponse(UserSkill us) {
+                return new UserSkillResponse(
+                                us.getId(),
+                                us.getSkill().getId(),
+                                us.getSkill().getName(),
+                                us.getSkill().getCategory(),
+                                us.getLevel().name(),
+                                us.getSkillType().name());
+        }
 }

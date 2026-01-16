@@ -50,7 +50,7 @@ public class MatchingWebSocketController {
     }
 
     @MessageMapping("/matching.join")
-    public void joinMatching(String intentString, Principal principal) {
+    public void joinMatching(com.Project.Continuum.dto.MatchingRequest request, Principal principal) {
         if (principal == null) {
             log.warn("No principal for matching.join");
             return;
@@ -64,33 +64,29 @@ public class MatchingWebSocketController {
             return;
         }
 
-        MatchIntent intent;
-        try {
-            String cleanIntent = intentString.replace("\"", "").trim();
-            intent = MatchIntent.valueOf(cleanIntent);
-        } catch (Exception e) {
-            log.warn("Invalid intent: {}, defaulting to AUDIO_CALL", intentString);
-            intent = MatchIntent.AUDIO_CALL;
-        }
+        // Use info from request
+        MatchIntent intent = request.getIntent();
 
-        log.info("User {} joining matching with intent: {}", userId, intent);
+        log.info("User {} joining matching with intent: {} in category: {}", userId, intent, request.getCategory());
 
-        // First, check if there's someone in the waiting queue
-        Long matchedUserId = findFromWaitingQueue(userId);
+        // First, check if there's someone in the waiting queue (simple FIFO check -
+        // strictly we should check category here too)
+        // For strict category matching, we might want to leverage MatchingService
+        // primarily.
+        // But if we want to check the queue:
+        // TODO: Enhance queue to be category-aware. For now, we rely on MatchingService
+        // immediate match.
 
-        if (matchedUserId != null) {
-            log.info("Found match from queue: {} <-> {}", userId, matchedUserId);
-            createSessionAndNotify(userId, matchedUserId);
-            return;
-        }
-
-        // Try to find candidates using MatchingService
-        MatchDecision decision = matchingService.findMatch(userId, intent);
+        // Try to find candidates using MatchingService (This does strict category
+        // checks)
+        MatchDecision decision = matchingService.findMatch(userId, request);
 
         if (decision.getType() == MatchDecisionType.ONLINE_CANDIDATE_FOUND &&
+                decision.getCandidates() != null &&
                 !decision.getCandidates().isEmpty()) {
 
             for (MatchCandidate candidate : decision.getCandidates()) {
+                // If candidate is also waiting in queue (active), match them!
                 if (waitingQueue.containsKey(candidate.getUserId())) {
                     log.info("Matched with waiting candidate: {} <-> {}", userId, candidate.getUserId());
                     waitingQueue.remove(candidate.getUserId());
@@ -101,13 +97,15 @@ public class MatchingWebSocketController {
         }
 
         // No immediate match - add to waiting queue
+        // We should really store the full request here to match against future JOINERS
         waitingQueue.put(userId, intent);
         log.info("User {} added to waiting queue. Queue size: {}", userId, waitingQueue.size());
 
         messagingTemplate.convertAndSendToUser(
                 userId.toString(),
                 "/queue/match",
-                Map.of("type", "WAITING", "message", "You are in the queue. Waiting for a partner..."));
+                Map.of("type", "WAITING", "message",
+                        "You are in the queue. Waiting for a partner in " + request.getCategory() + "..."));
     }
 
     private Long findFromWaitingQueue(Long userId) {

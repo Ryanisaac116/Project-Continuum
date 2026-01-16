@@ -18,7 +18,7 @@ import { getToken } from '../../api/client';
 const MatchingScreen = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const intent = location.state?.intent;
+  const { intent, category, teachSkillId, learnSkillId } = location.state || {};
   const token = getToken();
 
   const [status, setStatus] = useState('CONNECTING');
@@ -34,8 +34,9 @@ const MatchingScreen = () => {
     if (mountedRef.current) return;
     mountedRef.current = true;
 
-    if (!intent || !token) {
-      navigate('/exchanges');
+    if (!intent || !token || !category || !teachSkillId || !learnSkillId) {
+      // Missing required data, redirect to setup
+      navigate('/exchanges/intent'); // Redirect to setup
       return;
     }
 
@@ -49,6 +50,13 @@ const MatchingScreen = () => {
         disconnectMatchingSocket();
       }
     }, 30000);
+
+    const requestPayload = {
+      intent,
+      category,
+      teachSkillId,
+      learnSkillId
+    };
 
     connectMatchingSocket(
       token,
@@ -78,12 +86,14 @@ const MatchingScreen = () => {
         connectedRef.current = true;
         clearTimeout(timeoutRef.current);
         setStatus('SEARCHING');
-        joinMatching(intent);
+        console.log('Joining matching with payload:', requestPayload);
+        joinMatching(requestPayload);
       },
       (err) => {
         connectedRef.current = false;
         setStatus('ERROR');
         setError(err || 'Connection failed. Please try again.');
+        // If 400ish error (validation), we might want to show it
       }
     );
 
@@ -95,7 +105,7 @@ const MatchingScreen = () => {
       connectedRef.current = false;
       mountedRef.current = false;
     };
-  }, [intent, token, navigate]); // Removed status from dependencies
+  }, [intent, category, teachSkillId, learnSkillId, token, navigate]);
 
   const handleCancel = () => {
     clearTimeout(timeoutRef.current);

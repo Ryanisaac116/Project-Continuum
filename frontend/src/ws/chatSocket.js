@@ -33,7 +33,8 @@ const listeners = {
     notification: new Set(),
     callSignal: new Set(),
     presence: new Map(),
-    connectionChange: new Set() // NEW: listen to connection state changes
+    connectionChange: new Set(), // NEW: listen to connection state changes
+    match: new Set() // NEW: listen to match events
 };
 
 /**
@@ -179,6 +180,20 @@ const setupSubscriptions = () => {
             const data = JSON.parse(message.body);
             console.log('[ChatSocket] Call signal:', data);
             emit('callSignal', data);
+        });
+
+        // Match events (from Matching Service)
+        client.subscribe('/user/queue/match', (message) => {
+            const data = JSON.parse(message.body);
+            console.log('[ChatSocket] Match event:', data);
+            emit('match', data);
+        });
+
+        // Session events (Started, Ended)
+        client.subscribe('/user/queue/session', (message) => {
+            const data = JSON.parse(message.body);
+            console.log('[ChatSocket] Session event:', data);
+            emit('session', data);
         });
 
         // Re-subscribe to presence for existing subscriptions

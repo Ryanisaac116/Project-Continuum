@@ -18,10 +18,9 @@ public class MatchingController {
 
     @PostMapping("/join")
     public MatchDecision findMatch(
-            @RequestParam MatchIntent intent) {
+            @RequestBody com.Project.Continuum.dto.MatchingRequest request) {
 
         Long userId = SecurityUtils.getCurrentUserId();
-        return matchingService.findMatch(userId, intent);
+        return matchingService.findMatch(userId, request);
     }
 }
-

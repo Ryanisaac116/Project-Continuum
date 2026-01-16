@@ -49,11 +49,11 @@ public class FriendService {
         boolean hasCompletedSession = exchangeSessionRepository
                 .existsByUserA_IdAndUserB_IdAndStatusIn(
                         sender.getId(), receiver.getId(),
-                        List.of(ExchangeStatus.COMPLETED))
+                        List.of(ExchangeStatus.COMPLETED, ExchangeStatus.ACTIVE))
                 || exchangeSessionRepository
                         .existsByUserA_IdAndUserB_IdAndStatusIn(
                                 receiver.getId(), sender.getId(),
-                                List.of(ExchangeStatus.COMPLETED));
+                                List.of(ExchangeStatus.COMPLETED, ExchangeStatus.ACTIVE));
 
         if (!hasCompletedSession && source == FriendSource.EXCHANGE) {
             // "Friends can be added only after a completed audio call"
@@ -151,6 +151,42 @@ public class FriendService {
 
         friend.setStatus(FriendStatus.REJECTED);
         friendRepository.save(friend);
+
+        // 🔥 Broadcast real-time event to requester
+        messagingTemplate.convertAndSendToUser(
+                String.valueOf(requesterId),
+                "/queue/friends",
+                java.util.Map.of(
+                        "event", "FRIEND_REQUEST_REJECTED",
+                        "friendId", currentUserId));
+    }
+
+    // 🔥 Remove Friend
+    public void removeFriend(Long currentUserId, Long friendId) {
+        // Normalize IDs
+        Long u1 = Math.min(currentUserId, friendId);
+        Long u2 = Math.max(currentUserId, friendId);
+
+        Friend friend = friendRepository.findByUser1_IdAndUser2_Id(u1, u2)
+                .orElseThrow(() -> new ResourceNotFoundException("Friendship not found"));
+
+        friendRepository.delete(friend);
+
+        // 🔥 Broadcast REMOVED to the OTHER person
+        // (The one who initiated the removal knows because they clicked the button, but
+        // updating their local state is handled by the controller return or frontend
+        // opt)
+        // Actually, broadcast to BOTH to be safe or just the other.
+        // Let's broadcast to the 'other' user.
+        Long otherUserId = friend.getUser1().getId().equals(currentUserId) ? friend.getUser2().getId()
+                : friend.getUser1().getId();
+
+        messagingTemplate.convertAndSendToUser(
+                String.valueOf(otherUserId),
+                "/queue/friends",
+                java.util.Map.of(
+                        "event", "FRIEND_REMOVED",
+                        "friendId", currentUserId));
     }
 
     public List<FriendResponse> getFriends(Long currentUserId) {
@@ -213,7 +249,7 @@ public class FriendService {
         java.util.Map<Long, com.Project.Continuum.dto.friend.RecentlyMetResponse> userMap = new java.util.LinkedHashMap<>();
 
         sessions.stream()
-                .filter(s -> s.getStatus() == ExchangeStatus.COMPLETED)
+                .filter(s -> s.getStatus() == ExchangeStatus.COMPLETED || s.getStatus() == ExchangeStatus.ACTIVE)
                 .forEach(session -> {
                     User otherUser = session.getUserA().getId().equals(currentUserId)
                             ? session.getUserB()

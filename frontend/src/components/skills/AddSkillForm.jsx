@@ -44,9 +44,22 @@ export const AddSkillForm = ({ onSuccess, onCancel }) => {
                     onChange={e => setSelectedSkill(e.target.value)}
                 >
                     <option value="">-- Choose Skill --</option>
-                    {systemSkills.map(s => (
-                        <option key={s.id} value={s.id}>{s.name} ({s.category})</option>
-                    ))}
+                    {(() => {
+                        const grouped = systemSkills.reduce((acc, s) => {
+                            const cat = s.category || 'Other';
+                            if (!acc[cat]) acc[cat] = [];
+                            acc[cat].push(s);
+                            return acc;
+                        }, {});
+
+                        return Object.entries(grouped).map(([category, skills]) => (
+                            <optgroup key={category} label={category}>
+                                {skills.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                            </optgroup>
+                        ));
+                    })()}
                 </select>
             </div>
 

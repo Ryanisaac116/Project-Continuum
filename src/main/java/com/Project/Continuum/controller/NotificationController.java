@@ -54,4 +54,14 @@ public class NotificationController {
         notificationService.markAllAsRead(userId);
         return ResponseEntity.ok(Map.of("status", "ok"));
     }
+
+    /**
+     * Clear all notifications
+     */
+    @DeleteMapping
+    public ResponseEntity<Map<String, String>> clearAllNotifications() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        notificationService.clearAllNotifications(userId);
+        return ResponseEntity.ok(Map.of("status", "ok"));
+    }
 }
