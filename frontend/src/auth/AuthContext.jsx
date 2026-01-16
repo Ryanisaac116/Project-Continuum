@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
-import apiClient from '../api/client';
+import apiClient, { getToken, clearAuthState } from '../api/client';
 
 const AuthContext = createContext(null);
 
@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
   // 🔐 Initialize auth ONCE on app load
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('token');
+      const token = getToken();
 
       if (!token) {
         setLoading(false);
@@ -23,8 +23,7 @@ export const AuthProvider = ({ children }) => {
         setUser(data);
       } catch (err) {
         console.error('Auth init failed:', err);
-        localStorage.removeItem('token');
-        localStorage.removeItem('userId');
+        clearAuthState();
         setUser(null);
       } finally {
         setLoading(false);
@@ -34,11 +33,21 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, []);
 
+  // 🔄 Update local user presence (called by useTabPresence)
+  const updateUserPresence = useCallback((status) => {
+    console.log('[AuthContext] updateUserPresence called with:', status);
+    setUser(prev => {
+      if (!prev) return null;
+      console.log('[AuthContext] Updating user presence from', prev.presenceStatus, 'to', status);
+      return { ...prev, presenceStatus: status };
+    });
+  }, []);
+
   // 🚪 DEV LOGIN (ID-based)
   const login = async (userId) => {
     try {
       // 1️⃣ Dev login (NO apiClient here)
-      const { data } = await axios.post(`/dev/auth/login/${userId}`);
+      const { data } = await axios.post('/api/auth/dev/login', { userId });
 
       // 2️⃣ Store token immediately
       localStorage.setItem('token', data.token);
@@ -51,7 +60,11 @@ export const AuthProvider = ({ children }) => {
         },
       });
 
-      setUser(userRes.data);
+      // ⚡ Optimistic Update: User is definitely ONLINE now.
+      const userData = { ...userRes.data, presenceStatus: 'ONLINE' };
+      console.log('[AuthContext] Login successful. Optimistically setting ONLINE:', userData);
+
+      setUser(userData);
     } catch (err) {
       console.error('Login failed:', {
         status: err.response?.status,
@@ -64,20 +77,21 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      // 🔥 Call backend to mark user OFFLINE before clearing token
-      await apiClient.post('/dev/auth/logout');
+      if (user?.id) {
+        // 🔥 Call backend to mark user OFFLINE before clearing token
+        await apiClient.post(`/dev/auth/logout/${user.id}`);
+      }
     } catch (err) {
       console.error('Logout API failed:', err);
       // Continue with local logout even if API fails
     }
 
-    localStorage.removeItem('token');
-    localStorage.removeItem('userId');
+    clearAuthState();
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUserPresence }}>
       {children}
     </AuthContext.Provider>
   );

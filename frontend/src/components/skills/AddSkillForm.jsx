@@ -35,11 +35,11 @@ export const AddSkillForm = ({ onSuccess, onCancel }) => {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 space-y-4 transition-colors">
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select Skill</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">Select Skill</label>
                 <select
-                    className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-600 p-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     value={selectedSkill}
                     onChange={e => setSelectedSkill(e.target.value)}
                 >
@@ -52,9 +52,9 @@ export const AddSkillForm = ({ onSuccess, onCancel }) => {
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
                     <select
-                        className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                        className="w-full rounded-md border border-gray-300 dark:border-gray-600 p-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         value={type}
                         onChange={e => setType(e.target.value)}
                     >
@@ -63,9 +63,9 @@ export const AddSkillForm = ({ onSuccess, onCancel }) => {
                     </select>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Level</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Level</label>
                     <select
-                        className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                        className="w-full rounded-md border border-gray-300 dark:border-gray-600 p-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         value={level}
                         onChange={e => setLevel(e.target.value)}
                     >

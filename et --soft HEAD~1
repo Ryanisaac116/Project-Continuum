@@ -1,0 +1,14 @@
+[33m4a5424e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;33mtag: [m[1;33mpre-oauth-stable[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m chore: stabilize auth, env separation, and UI before OAuth
+[33m4ef5556[m[33m ([m[1;33mtag: [m[1;33mv1.3-phase4-infra[m[33m)[m chore: remove log files
+[33m6a300af[m chore: remove log files from tracking and update gitignore
+[33m440cc04[m chore: add frontend application to repository
+[33mee76685[m[33m ([m[1;33mtag: [m[1;33mbackend-fully-verified[m[33m)[m test: complete Phase 4 signaling integration with test-safe stubs
+[33me184297[m[33m ([m[1;33mtag: [m[1;33mphase-3-tests-green[m[33m)[m test: complete Phase 3 exchange lifecycle integration tests
+[33m8e21df5[m[33m ([m[1;33mtag: [m[1;33mphase-2-tests-green[m[33m)[m test: complete Phase 2 friend & chat integration + enforce chat access control
+[33mbcf2867[m[33m ([m[1;33mtag: [m[1;33mphase-1-tests-green[m[33m)[m test: complete Phase 1 user & skill integration tests
+[33m86073c7[m[33m ([m[1;33mtag: [m[1;33mv1.1-realtime-communication[m[33m)[m feat: realtime chat, presence, friend-gated messaging, and audio call signaling
+[33mb5a24ef[m stabilize presence system with scheduler sync and store integration
+[33m5be6131[m integrate in-memory PresenceStore for stable status tracking
+[33m6ef16a9[m implement real-time chat and presence system
+[33md5964b0[m Implement presence system with heartbeat, session guards, and friends visibility
+[33m5381c7f[m[33m ([m[1;33mtag: [m[1;33mv1.0-foundation[m[33m)[m Clean foundation commit

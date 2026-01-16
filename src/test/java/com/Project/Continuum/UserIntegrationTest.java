@@ -14,6 +14,7 @@ import com.Project.Continuum.repository.UserProfileRepository;
 import com.Project.Continuum.repository.UserRepository;
 import com.Project.Continuum.repository.UserSkillRepository;
 import com.Project.Continuum.security.JwtUtil;
+import com.Project.Continuum.enums.AuthProvider;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -73,7 +74,7 @@ public class UserIntegrationTest {
         // 1. Create User
         testUser = new User();
         testUser.setName("Integration Tester");
-        testUser.setAuthProvider("GOOGLE");
+        testUser.setAuthProvider(AuthProvider.GOOGLE);
         testUser.setProviderUserId("int_test_123");
         testUser.setActive(true);
         testUser = userRepository.save(testUser);
@@ -113,7 +114,7 @@ public class UserIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(userUpdate)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Updated Tester")); // Assuming API returns updated user
+                .andExpect(jsonPath("$.name").value("Updated Tester"));
 
         UserProfileUpdateRequest profileUpdate = new UserProfileUpdateRequest();
         profileUpdate.setHeadline("Senior QA");

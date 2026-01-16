@@ -14,14 +14,14 @@ import { Badge } from '../ui/Badge';
 const FriendRequestsList = ({ requests, onAccept, onReject, pendingActions = {} }) => {
     if (!requests || requests.length === 0) {
         return (
-            <div className="p-4 text-center text-gray-500 text-sm">
+            <div className="p-4 text-center text-gray-500 dark:text-slate-500 text-sm">
                 No pending friend requests
             </div>
         );
     }
 
     return (
-        <ul className="divide-y divide-gray-100">
+        <ul className="divide-y divide-gray-200 dark:divide-slate-800">
             {requests.map((request) => {
                 const isAccepting = pendingActions[`accept-${request.requesterId}`];
                 const isRejecting = pendingActions[`reject-${request.requesterId}`];
@@ -32,13 +32,13 @@ const FriendRequestsList = ({ requests, onAccept, onReject, pendingActions = {} 
                         {/* User Info */}
                         <div className="flex items-center gap-3">
                             {/* Avatar placeholder */}
-                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium">
+                            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-500 font-medium border border-blue-200 dark:border-blue-500/20 transition-colors">
                                 {request.requesterName?.charAt(0)?.toUpperCase() || '?'}
                             </div>
 
                             <div>
-                                <div className="font-medium text-gray-900">{request.requesterName}</div>
-                                <div className="text-xs text-gray-500">
+                                <div className="font-medium text-gray-900 dark:text-white transition-colors">{request.requesterName}</div>
+                                <div className="text-xs text-gray-500 dark:text-slate-500 transition-colors">
                                     {request.requestedAt
                                         ? `Requested ${formatRelativeTime(request.requestedAt)}`
                                         : 'Pending request'
@@ -55,8 +55,8 @@ const FriendRequestsList = ({ requests, onAccept, onReject, pendingActions = {} 
                                 onClick={() => onAccept(request.requesterId, request.requesterName, request.presence)}
                                 disabled={isAnyPending}
                                 className={`px-3 py-1 text-sm rounded-lg transition ${isAnyPending
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-green-600 text-white hover:bg-green-700'
+                                    ? 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 cursor-not-allowed border border-gray-200 dark:border-slate-700'
+                                    : 'bg-green-600 text-white hover:bg-green-500 shadow-lg shadow-green-500/20'
                                     }`}
                             >
                                 {isAccepting ? 'Accepting...' : 'Accept'}
@@ -65,8 +65,8 @@ const FriendRequestsList = ({ requests, onAccept, onReject, pendingActions = {} 
                                 onClick={() => onReject(request.requesterId)}
                                 disabled={isAnyPending}
                                 className={`px-3 py-1 text-sm rounded-lg transition ${isAnyPending
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    ? 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 cursor-not-allowed border border-gray-200 dark:border-slate-700'
+                                    : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700'
                                     }`}
                             >
                                 {isRejecting ? 'Declining...' : 'Decline'}

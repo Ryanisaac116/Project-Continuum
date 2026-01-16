@@ -22,22 +22,40 @@ public class JwtUtil {
         this.expirationMs = expirationMs;
     }
 
+    // Original method for backward compatibility (no session token)
     public String generateToken(Long userId) {
-        return Jwts.builder()
+        return generateToken(userId, null);
+    }
+
+    // New method with session token claim
+    public String generateToken(Long userId, String sessionToken) {
+        var builder = Jwts.builder()
                 .setSubject(userId.toString())
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expirationMs))
-                .signWith(key)
-                .compact();
+                .setExpiration(new Date(System.currentTimeMillis() + expirationMs));
+
+        if (sessionToken != null) {
+            builder.claim("session_token", sessionToken);
+        }
+
+        return builder.signWith(key).compact();
     }
 
     public Long extractUserId(String token) {
-        Claims claims = Jwts.parserBuilder()
+        Claims claims = parseClaims(token);
+        return Long.parseLong(claims.getSubject());
+    }
+
+    public String extractSessionToken(String token) {
+        Claims claims = parseClaims(token);
+        return claims.get("session_token", String.class);
+    }
+
+    private Claims parseClaims(String token) {
+        return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
-
-        return Long.parseLong(claims.getSubject());
     }
 }

@@ -1,6 +1,7 @@
 package com.Project.Continuum.entity;
 
 import com.Project.Continuum.enums.PresenceStatus;
+import com.Project.Continuum.enums.AuthProvider;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import jakarta.persistence.EnumType;
@@ -26,10 +27,11 @@ public class User {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "auth_provider")
-    private String authProvider;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_provider", nullable = false)
+    private AuthProvider authProvider;
 
-    @Column(name = "provider_user_id")
+    @Column(name = "provider_user_id", nullable = false)
     private String providerUserId;
 
     @Enumerated(EnumType.STRING)
@@ -38,6 +40,9 @@ public class User {
 
     @Column(name = "last_seen_at")
     private LocalDateTime lastSeenAt;
+
+    @Column(name = "session_token")
+    private String sessionToken;
 
     // ===== getters =====
     public Long getId() {
@@ -68,6 +73,18 @@ public class User {
         return lastSeenAt;
     }
 
+    public String getSessionToken() {
+        return sessionToken;
+    }
+
+    public AuthProvider getAuthProvider() {
+        return authProvider;
+    }
+
+    public String getProviderUserId() {
+        return providerUserId;
+    }
+
     // ===== setters =====
     public void setName(String name) {
         this.name = name;
@@ -89,12 +106,16 @@ public class User {
         this.lastSeenAt = lastSeenAt;
     }
 
-    public void setAuthProvider(String authProvider) {
+    public void setAuthProvider(AuthProvider authProvider) {
         this.authProvider = authProvider;
     }
 
     public void setProviderUserId(String providerUserId) {
         this.providerUserId = providerUserId;
+    }
+
+    public void setSessionToken(String sessionToken) {
+        this.sessionToken = sessionToken;
     }
 
     @PrePersist

@@ -3,5 +3,6 @@ package com.Project.Continuum.enums;
 public enum PresenceStatus {
     ONLINE,
     OFFLINE,
-    BUSY
+    BUSY,
+    IN_SESSION
 }

@@ -1,5 +1,7 @@
 package com.Project.Continuum;
 
+import com.Project.Continuum.enums.AuthProvider;
+
 import com.Project.Continuum.controller.CallSignalingController;
 import com.Project.Continuum.dto.call.CallSignalMessage;
 import com.Project.Continuum.entity.*;
@@ -132,7 +134,7 @@ public class CallSignalingIntegrationTest {
     private User createUser(String name, String providerId) {
         User u = new User();
         u.setName(name);
-        u.setAuthProvider("GOOGLE");
+        u.setAuthProvider(AuthProvider.GOOGLE);
         u.setProviderUserId(providerId);
         u.setActive(true);
         u.setPresenceStatus(PresenceStatus.ONLINE);

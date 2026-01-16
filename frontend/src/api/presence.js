@@ -6,6 +6,7 @@ import apiClient from './client';
 const presenceApi = {
     markOnline: () => apiClient.patch('/presence', { status: 'ONLINE' }),
     markOffline: () => apiClient.patch('/presence', { status: 'OFFLINE' }),
+    heartbeat: () => apiClient.post('/presence/heartbeat'),
 };
 
 export default presenceApi;

@@ -1,5 +1,7 @@
 package com.Project.Continuum.security;
 
+import com.Project.Continuum.entity.User;
+import com.Project.Continuum.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,14 +13,17 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Optional;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
+    public JwtAuthenticationFilter(JwtUtil jwtUtil, UserRepository userRepository) {
         this.jwtUtil = jwtUtil;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -52,6 +57,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             Long userId = jwtUtil.extractUserId(token);
+            String jwtSessionToken = jwtUtil.extractSessionToken(token);
+
+            // Validate session token against database
+            if (jwtSessionToken != null) {
+                Optional<User> userOpt = userRepository.findById(userId);
+                if (userOpt.isPresent()) {
+                    User user = userOpt.get();
+                    String dbSessionToken = user.getSessionToken();
+
+                    // Session mismatch = user logged in from another device
+                    if (dbSessionToken == null || !dbSessionToken.equals(jwtSessionToken)) {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json");
+                        response.getWriter().write(
+                                "{\"error\":\"session_invalidated\",\"message\":\"Session invalid. Please log in again.\"}");
+                        return;
+                    }
+                }
+            }
 
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     userId,

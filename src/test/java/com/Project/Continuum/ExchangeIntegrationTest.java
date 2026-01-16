@@ -1,5 +1,7 @@
 package com.Project.Continuum;
 
+import com.Project.Continuum.enums.AuthProvider;
+
 import com.Project.Continuum.dto.exchange.ExchangeRequestCreateRequest;
 import com.Project.Continuum.dto.exchange.ExchangeRequestUpdateRequest;
 import com.Project.Continuum.entity.*;
@@ -198,7 +200,7 @@ public class ExchangeIntegrationTest {
     private User createUser(String name, String providerId) {
         User u = new User();
         u.setName(name);
-        u.setAuthProvider("GOOGLE");
+        u.setAuthProvider(AuthProvider.GOOGLE);
         u.setProviderUserId(providerId);
         u.setActive(true);
         u.setPresenceStatus(PresenceStatus.ONLINE);

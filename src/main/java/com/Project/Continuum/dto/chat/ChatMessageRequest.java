@@ -11,6 +11,9 @@ public class ChatMessageRequest {
     @NotBlank
     private String content;
 
+    // Optional: ID of message being replied to
+    private Long replyToId;
+
     public Long getRecipientId() {
         return recipientId;
     }
@@ -25,5 +28,13 @@ public class ChatMessageRequest {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public Long getReplyToId() {
+        return replyToId;
+    }
+
+    public void setReplyToId(Long replyToId) {
+        this.replyToId = replyToId;
     }
 }

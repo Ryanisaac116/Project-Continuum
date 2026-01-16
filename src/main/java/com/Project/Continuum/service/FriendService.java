@@ -24,13 +24,16 @@ public class FriendService {
     private final FriendRepository friendRepository;
     private final ExchangeSessionRepository exchangeSessionRepository;
     private final com.Project.Continuum.store.PresenceStore presenceStore;
+    private final org.springframework.messaging.simp.SimpMessageSendingOperations messagingTemplate;
 
     public FriendService(FriendRepository friendRepository,
             ExchangeSessionRepository exchangeSessionRepository,
-            com.Project.Continuum.store.PresenceStore presenceStore) {
+            com.Project.Continuum.store.PresenceStore presenceStore,
+            org.springframework.messaging.simp.SimpMessageSendingOperations messagingTemplate) {
         this.friendRepository = friendRepository;
         this.exchangeSessionRepository = exchangeSessionRepository;
         this.presenceStore = presenceStore;
+        this.messagingTemplate = messagingTemplate;
     }
 
     // 🔥 Send Friend Request
@@ -41,12 +44,16 @@ public class FriendService {
 
         // 1. Verify Audio Exchange Completion (Service Layer Truth)
         // Must have at least one COMPLETED session between them.
+        // Check both orderings since sessions may not be stored with consistent
+        // ordering
         boolean hasCompletedSession = exchangeSessionRepository
-                .findByUserA_IdAndUserB_IdAndStatusIn(
-                        Math.min(sender.getId(), receiver.getId()),
-                        Math.max(sender.getId(), receiver.getId()),
+                .existsByUserA_IdAndUserB_IdAndStatusIn(
+                        sender.getId(), receiver.getId(),
                         List.of(ExchangeStatus.COMPLETED))
-                .isPresent();
+                || exchangeSessionRepository
+                        .existsByUserA_IdAndUserB_IdAndStatusIn(
+                                receiver.getId(), sender.getId(),
+                                List.of(ExchangeStatus.COMPLETED));
 
         if (!hasCompletedSession && source == FriendSource.EXCHANGE) {
             // "Friends can be added only after a completed audio call"
@@ -79,6 +86,16 @@ public class FriendService {
         friend.setStatus(FriendStatus.PENDING); // Set Pending
 
         friendRepository.save(friend);
+
+        // 🔥 Broadcast real-time event to receiver
+        messagingTemplate.convertAndSendToUser(
+                String.valueOf(receiver.getId()),
+                "/queue/friends",
+                java.util.Map.of(
+                        "event", "FRIEND_REQUEST_RECEIVED",
+                        "requesterId", sender.getId(),
+                        "requesterName", sender.getName(),
+                        "presence", presenceStore.getStatus(sender.getId()).name()));
     }
 
     // 🔥 Accept Friend Request
@@ -90,7 +107,7 @@ public class FriendService {
                 .orElseThrow(() -> new ResourceNotFoundException("Friend request not found"));
 
         if (friend.getStatus() == FriendStatus.ACCEPTED) {
-            return; // Already accepted
+            return; // Already accepted - idempotent
         }
 
         if (friend.getRequester().getId().equals(currentUserId)) {
@@ -100,11 +117,40 @@ public class FriendService {
         friend.setStatus(FriendStatus.ACCEPTED);
         friendRepository.save(friend);
 
-        // Broadcast presence update?
-        // Friends list will now capture this via next polling/fetch.
-        // PresenceService.updatePresence might need to be triggered if we want
-        // Real-time List update?
-        // But `FriendService` returns status.
+        // 🔥 Broadcast real-time event to requester (they now have a new friend)
+        User currentUser = friend.getUser1().getId().equals(currentUserId) ? friend.getUser1() : friend.getUser2();
+        messagingTemplate.convertAndSendToUser(
+                String.valueOf(requesterId),
+                "/queue/friends",
+                java.util.Map.of(
+                        "event", "FRIEND_REQUEST_ACCEPTED",
+                        "friendId", currentUserId,
+                        "friendName", currentUser.getName(),
+                        "presence", presenceStore.getStatus(currentUserId).name()));
+    }
+
+    // 🔥 Reject Friend Request
+    public void rejectFriendRequest(Long currentUserId, Long requesterId) {
+        Long u1 = Math.min(currentUserId, requesterId);
+        Long u2 = Math.max(currentUserId, requesterId);
+
+        Friend friend = friendRepository.findByUser1_IdAndUser2_Id(u1, u2)
+                .orElseThrow(() -> new ResourceNotFoundException("Friend request not found"));
+
+        if (friend.getStatus() == FriendStatus.REJECTED) {
+            return; // Already rejected - idempotent
+        }
+
+        if (friend.getStatus() == FriendStatus.ACCEPTED) {
+            throw new BadRequestException("Cannot reject an already accepted friendship.");
+        }
+
+        if (friend.getRequester().getId().equals(currentUserId)) {
+            throw new BadRequestException("You cannot reject your own request.");
+        }
+
+        friend.setStatus(FriendStatus.REJECTED);
+        friendRepository.save(friend);
     }
 
     public List<FriendResponse> getFriends(Long currentUserId) {
@@ -126,5 +172,68 @@ public class FriendService {
                             presenceStore.getStatus(otherUser.getId()));
                 })
                 .toList();
+    }
+
+    /**
+     * Get pending incoming friend requests (where current user is the receiver)
+     */
+    public List<com.Project.Continuum.dto.friend.FriendRequestResponse> getPendingRequests(Long currentUserId) {
+        List<Friend> friendships = friendRepository.findByUser1_IdOrUser2_Id(currentUserId, currentUserId);
+
+        return friendships.stream()
+                .filter(f -> f.getStatus() == FriendStatus.PENDING)
+                .filter(f -> !f.getRequester().getId().equals(currentUserId)) // Only incoming requests
+                .map(friend -> {
+                    User requester = friend.getRequester();
+                    return new com.Project.Continuum.dto.friend.FriendRequestResponse(
+                            requester.getId(),
+                            requester.getName(),
+                            presenceStore.getStatus(requester.getId()),
+                            friend.getConnectedAt());
+                })
+                .toList();
+    }
+
+    /**
+     * Get recently met users from completed exchange sessions
+     * Excludes users who already have a friend relationship (pending/accepted)
+     */
+    public List<com.Project.Continuum.dto.friend.RecentlyMetResponse> getRecentlyMet(Long currentUserId) {
+        // Get all completed sessions for this user
+        List<com.Project.Continuum.entity.ExchangeSession> sessions = exchangeSessionRepository
+                .findByUserA_IdOrUserB_Id(currentUserId, currentUserId);
+
+        // Get existing friend relationships to exclude
+        List<Friend> friendships = friendRepository.findByUser1_IdOrUser2_Id(currentUserId, currentUserId);
+        java.util.Set<Long> friendUserIds = friendships.stream()
+                .map(f -> f.getUser1().getId().equals(currentUserId) ? f.getUser2().getId() : f.getUser1().getId())
+                .collect(java.util.stream.Collectors.toSet());
+
+        // Deduplicate by userId, keeping the most recent session
+        java.util.Map<Long, com.Project.Continuum.dto.friend.RecentlyMetResponse> userMap = new java.util.LinkedHashMap<>();
+
+        sessions.stream()
+                .filter(s -> s.getStatus() == ExchangeStatus.COMPLETED)
+                .forEach(session -> {
+                    User otherUser = session.getUserA().getId().equals(currentUserId)
+                            ? session.getUserB()
+                            : session.getUserA();
+                    Long otherUserId = otherUser.getId();
+
+                    // Skip if already friends
+                    if (friendUserIds.contains(otherUserId))
+                        return;
+
+                    // Only add if not already in map, or if this session is more recent
+                    if (!userMap.containsKey(otherUserId)) {
+                        userMap.put(otherUserId, new com.Project.Continuum.dto.friend.RecentlyMetResponse(
+                                otherUserId,
+                                otherUser.getName(),
+                                presenceStore.getStatus(otherUserId),
+                                session.getEndedAt()));
+                    }
+                });
+
+        return new java.util.ArrayList<>(userMap.values());
     }
 }

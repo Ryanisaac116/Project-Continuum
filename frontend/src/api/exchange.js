@@ -9,4 +9,20 @@ export const exchangeApi = {
 
   getStatus: () =>
     apiClient.get('/matching/status'),
+
+  // Dashboard metrics
+  getStats: () =>
+    apiClient.get('/exchange-stats'),
+
+  // Session details
+  getSession: (sessionId) =>
+    apiClient.get(`/sessions/${sessionId}`),
+
+  // End session
+  endSession: (sessionId) =>
+    apiClient.post(`/sessions/${sessionId}/end`),
+
+  // Start call within exchange session
+  startExchangeCall: (receiverId, exchangeSessionId) =>
+    apiClient.post('/calls/exchange/initiate', { receiverId, exchangeSessionId }),
 };

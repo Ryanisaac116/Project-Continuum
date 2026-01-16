@@ -1,182 +1,98 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card, CardHeader } from '../components/ui/Card';
 import FriendsList from '../components/friends/FriendsList';
 import FriendRequestsList from '../components/friends/FriendRequestsList';
 import RecentlyMetList from '../components/friends/RecentlyMetList';
 import friendsApi from '../api/friends';
-import { useAuth } from '../auth/AuthContext';
-import {
-    connectChatSocket,
-    subscribeToPresence,
-    isChatConnected
-} from '../ws/chatSocket';
+import { useRealTime } from '../context/RealTimeContext';
 
 /**
- * FriendsPage - Main page for Friends tab
- * 
- * Phase 3: With actions enabled
+ * FriendsPage - Uses RealTimeContext for centralized state
  * 
  * Sections:
  * 1. Recently Met - Users from completed sessions (can send request)
  * 2. Friend Requests - Pending incoming requests (can accept/reject)
- * 3. Friends - Accepted friends list
+ * 3. Friends - Accepted friends list with real-time presence
  */
 const FriendsPage = () => {
-    const { user } = useAuth();
+    const {
+        friends,
+        pendingRequests: requests,
+        recentlyMet,
+        isLoading,
+        removeRequestLocally,
+        removeRecentlyMetLocally,
+        refreshFriends
+    } = useRealTime();
 
-    // Data state
-    const [friends, setFriends] = useState([]);
-    const [requests, setRequests] = useState([]);
-    const [recentlyMet, setRecentlyMet] = useState([]);
-
-    // UI state
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    // UI state for pending API actions
     const [pendingActions, setPendingActions] = useState({});
-
-    useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            setError(null);
-
-            try {
-                const [friendsRes, requestsRes, recentlyMetRes] = await Promise.all([
-                    friendsApi.getFriends(),
-                    friendsApi.getPendingRequests(),
-                    friendsApi.getRecentlyMet(),
-                ]);
-
-                setFriends(friendsRes.data);
-                setRequests(requestsRes.data);
-                setRecentlyMet(recentlyMetRes.data);
-            } catch (err) {
-                console.error('Failed to fetch friends data:', err);
-                setError('Failed to load friends data. Please try again.');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
-    }, []);
-
-    // ==================== PRESENCE SUBSCRIPTIONS ====================
-    const presenceUnsubscribesRef = useRef([]);
-
-    // Connect WebSocket and subscribe to friend presence updates
-    useEffect(() => {
-        if (friends.length === 0) return;
-
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
-        // Connect WebSocket if not connected
-        const setupPresenceSubscriptions = () => {
-            // Unsubscribe from previous subscriptions
-            presenceUnsubscribesRef.current.forEach(unsub => unsub());
-            presenceUnsubscribesRef.current = [];
-
-            // Subscribe to each friend's presence
-            friends.forEach(friend => {
-                const unsub = subscribeToPresence(friend.friendUserId, (presenceUpdate) => {
-                    // Update friend's presence in state
-                    setFriends(prev => prev.map(f =>
-                        f.friendUserId === presenceUpdate.userId
-                            ? { ...f, presenceStatus: presenceUpdate.status }
-                            : f
-                    ));
-                });
-                presenceUnsubscribesRef.current.push(unsub);
-            });
-        };
-
-        if (!isChatConnected()) {
-            connectChatSocket(
-                token,
-                () => { }, // message handler not needed here
-                () => setupPresenceSubscriptions(), // on connected
-                (err) => console.error('Presence socket error:', err)
-            );
-        } else {
-            setupPresenceSubscriptions();
-        }
-
-        // Cleanup on unmount or friends change
-        return () => {
-            presenceUnsubscribesRef.current.forEach(unsub => unsub());
-            presenceUnsubscribesRef.current = [];
-        };
-    }, [friends.length]); // Re-subscribe when friends list changes
+    const [error, setError] = useState(null);
 
     // ==================== ACTION HANDLERS ====================
 
     /**
      * Send friend request to a recently met user
-     * After success: remove from RecentlyMet list
      */
-    const handleSendRequest = async (userId) => {
+    const handleSendRequest = useCallback(async (userId) => {
         setPendingActions(prev => ({ ...prev, [`send-${userId}`]: true }));
 
         try {
             await friendsApi.sendFriendRequest(userId);
-            // Remove from recently met list (request is now pending)
-            setRecentlyMet(prev => prev.filter(u => u.userId !== userId));
+            removeRecentlyMetLocally(userId);
         } catch (err) {
             console.error('Failed to send friend request:', err);
             alert(err.response?.data?.message || 'Failed to send friend request');
         } finally {
             setPendingActions(prev => ({ ...prev, [`send-${userId}`]: false }));
         }
-    };
+    }, [removeRecentlyMetLocally]);
 
     /**
      * Accept an incoming friend request
-     * After success: remove from Requests, add to Friends
      */
-    const handleAcceptRequest = async (requesterId, requesterName, presence) => {
+    const handleAcceptRequest = useCallback(async (requesterId, requesterName, presence) => {
         setPendingActions(prev => ({ ...prev, [`accept-${requesterId}`]: true }));
 
         try {
             await friendsApi.acceptFriendRequest(requesterId);
-            // Remove from requests
-            setRequests(prev => prev.filter(r => r.requesterId !== requesterId));
-            // Add to friends list (use backend FriendResponse property names)
-            setFriends(prev => [...prev, { friendUserId: requesterId, name: requesterName, presenceStatus: presence }]);
+            removeRequestLocally(requesterId);
+            // RealTimeContext will handle adding the friend via WebSocket event
+            // But refresh to ensure consistency
+            refreshFriends();
         } catch (err) {
             console.error('Failed to accept friend request:', err);
             alert(err.response?.data?.message || 'Failed to accept friend request');
         } finally {
             setPendingActions(prev => ({ ...prev, [`accept-${requesterId}`]: false }));
         }
-    };
+    }, [removeRequestLocally, refreshFriends]);
 
     /**
      * Reject an incoming friend request
-     * After success: remove from Requests
      */
-    const handleRejectRequest = async (requesterId) => {
+    const handleRejectRequest = useCallback(async (requesterId) => {
         setPendingActions(prev => ({ ...prev, [`reject-${requesterId}`]: true }));
 
         try {
             await friendsApi.rejectFriendRequest(requesterId);
-            // Remove from requests
-            setRequests(prev => prev.filter(r => r.requesterId !== requesterId));
+            removeRequestLocally(requesterId);
         } catch (err) {
             console.error('Failed to reject friend request:', err);
             alert(err.response?.data?.message || 'Failed to reject friend request');
         } finally {
             setPendingActions(prev => ({ ...prev, [`reject-${requesterId}`]: false }));
         }
-    };
+    }, [removeRequestLocally]);
 
     // ==================== RENDER ====================
 
-    if (loading) {
+    if (isLoading) {
         return (
             <PageContainer>
                 <div className="text-center py-20">
-                    <div className="text-gray-500">Loading friends...</div>
+                    <div className="text-gray-500 dark:text-slate-500">Loading friends...</div>
                 </div>
             </PageContainer>
         );
@@ -186,7 +102,7 @@ const FriendsPage = () => {
         return (
             <PageContainer>
                 <div className="text-center py-20">
-                    <div className="text-red-500">{error}</div>
+                    <div className="text-red-500 dark:text-red-400">{error}</div>
                 </div>
             </PageContainer>
         );
@@ -196,7 +112,12 @@ const FriendsPage = () => {
         <PageContainer>
             <div className="space-y-4 sm:space-y-8">
                 {/* Page Header */}
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Friends</h1>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight transition-colors">Friends</h1>
+                        <p className="text-gray-500 dark:text-slate-400 mt-1 transition-colors">Manage your connections and requests</p>
+                    </div>
+                </div>
 
                 {/* Recently Met Section */}
                 <Card>

@@ -4,15 +4,17 @@ import com.Project.Continuum.entity.*;
 import com.Project.Continuum.enums.MatchDecisionType;
 import com.Project.Continuum.enums.MatchIntent;
 import com.Project.Continuum.enums.SkillType;
-import com.Project.Continuum.enums.PresenceStatus; // ✅ NEW IMPORT
+import com.Project.Continuum.enums.PresenceStatus;
 import com.Project.Continuum.matching.*;
 import com.Project.Continuum.repository.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class MatchingService {
 
     private final UserRepository userRepository;
@@ -34,47 +36,51 @@ public class MatchingService {
 
     public MatchDecision findMatch(Long userId, MatchIntent intent) {
 
-        /* =====================================================
-           1️⃣ Validate user exists
-           ===================================================== */
+        /*
+         * =====================================================
+         * 1️⃣ Validate user exists
+         * =====================================================
+         */
         userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        /* =====================================================
-           2️⃣ Fetch LEARN skills ONLY
-           ===================================================== */
-        List<UserSkill> learnerSkills =
-                userSkillRepository.findByUser_IdAndSkillType(
-                        userId, SkillType.LEARN);
+        /*
+         * =====================================================
+         * 2️⃣ Fetch LEARN skills ONLY
+         * =====================================================
+         */
+        List<UserSkill> learnerSkills = userSkillRepository.findByUser_IdAndSkillType(
+                userId, SkillType.LEARN);
 
         // ❌ TC-M5 FIX: user has no LEARN skills
         if (learnerSkills.isEmpty()) {
             return new MatchDecision(
                     MatchDecisionType.NO_MATCH,
                     List.of(),
-                    "No suitable users found. Try again later."
-            );
+                    "No suitable users found. Try again later.");
         }
 
         List<MatchCandidate> candidates = new ArrayList<>();
 
-        /* =====================================================
-           3️⃣ Core matching logic
-           ===================================================== */
+        /*
+         * =====================================================
+         * 3️⃣ Core matching logic
+         * =====================================================
+         */
         for (UserSkill learnerSkill : learnerSkills) {
 
             // ONLY teachers of the same skill
-            List<UserSkill> teachers =
-                    userSkillRepository.findBySkill_IdAndSkillType(
-                            learnerSkill.getSkill().getId(),
-                            SkillType.TEACH);
+            List<UserSkill> teachers = userSkillRepository.findBySkill_IdAndSkillType(
+                    learnerSkill.getSkill().getId(),
+                    SkillType.TEACH);
 
             for (UserSkill teacherSkill : teachers) {
 
                 User teacher = teacherSkill.getUser();
 
                 // 1️⃣ Self exclusion
-                if (teacher.getId().equals(userId)) continue;
+                if (teacher.getId().equals(userId))
+                    continue;
 
                 // 2️⃣ Friend exclusion (ordered pair)
                 Long a = Math.min(userId, teacher.getId());
@@ -105,29 +111,30 @@ public class MatchingService {
                         teacher.getName(),
                         headline,
                         learnerSkill.getSkill().getName(),
-                        teacherSkill.getLevel().name()
-                ));
+                        teacherSkill.getLevel().name()));
             }
         }
 
-        /* =====================================================
-           4️⃣ Final empty-result guard
-           ===================================================== */
+        /*
+         * =====================================================
+         * 4️⃣ Final empty-result guard
+         * =====================================================
+         */
         if (candidates.isEmpty()) {
             return new MatchDecision(
                     MatchDecisionType.NO_MATCH,
                     List.of(),
-                    "No suitable users found. Try again later."
-            );
+                    "No suitable users found. Try again later.");
         }
 
-        /* =====================================================
-           5️⃣ SUCCESS
-           ===================================================== */
+        /*
+         * =====================================================
+         * 5️⃣ SUCCESS
+         * =====================================================
+         */
         return new MatchDecision(
                 MatchDecisionType.ONLINE_CANDIDATE_FOUND, // ✅ UPDATED SEMANTICS
                 candidates,
-                "Suitable online users found"
-        );
+                "Suitable online users found");
     }
 }

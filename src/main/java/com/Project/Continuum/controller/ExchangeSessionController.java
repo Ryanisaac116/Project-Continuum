@@ -1,5 +1,6 @@
 package com.Project.Continuum.controller;
 
+import com.Project.Continuum.dto.exchange.ExchangeSessionDetailsResponse;
 import com.Project.Continuum.dto.exchange.ExchangeSessionResponse;
 import com.Project.Continuum.enums.ExchangeIntent;
 import com.Project.Continuum.security.SecurityUtils;
@@ -15,6 +16,13 @@ public class ExchangeSessionController {
     public ExchangeSessionController(
             ExchangeSessionService sessionService) {
         this.sessionService = sessionService;
+    }
+
+    @GetMapping("/{sessionId}")
+    public ExchangeSessionDetailsResponse getSession(
+            @PathVariable Long sessionId) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        return sessionService.getSessionDetails(sessionId, userId);
     }
 
     @PostMapping

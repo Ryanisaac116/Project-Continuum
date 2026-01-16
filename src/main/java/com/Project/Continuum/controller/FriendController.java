@@ -1,6 +1,8 @@
 package com.Project.Continuum.controller;
 
 import com.Project.Continuum.dto.friend.FriendResponse;
+import com.Project.Continuum.dto.friend.FriendRequestResponse;
+import com.Project.Continuum.dto.friend.RecentlyMetResponse;
 import com.Project.Continuum.security.SecurityUtils;
 import com.Project.Continuum.service.FriendService;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +28,18 @@ public class FriendController {
         return friendService.getFriends(userId);
     }
 
+    @GetMapping("/requests")
+    public List<FriendRequestResponse> getPendingRequests() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        return friendService.getPendingRequests(userId);
+    }
+
+    @GetMapping("/recently-met")
+    public List<RecentlyMetResponse> getRecentlyMet() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        return friendService.getRecentlyMet(userId);
+    }
+
     @PostMapping("/{targetUserId}/request")
     public void sendFriendRequest(@PathVariable Long targetUserId) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
@@ -45,5 +59,11 @@ public class FriendController {
     public void acceptFriendRequest(@PathVariable Long requesterId) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         friendService.acceptFriendRequest(currentUserId, requesterId);
+    }
+
+    @PostMapping("/{requesterId}/reject")
+    public void rejectFriendRequest(@PathVariable Long requesterId) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        friendService.rejectFriendRequest(currentUserId, requesterId);
     }
 }

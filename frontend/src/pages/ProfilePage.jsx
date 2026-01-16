@@ -27,9 +27,10 @@ const ProfilePage = () => {
   });
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
     loadProfile();
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const loadProfile = async () => {
     setLoading(true);
@@ -82,7 +83,7 @@ const ProfilePage = () => {
   if (authLoading || loading) {
     return (
       <PageContainer>
-        <div className="text-center py-12 text-gray-500">Loading profile…</div>
+        <div className="text-center py-12 text-slate-500">Loading profile…</div>
       </PageContainer>
     );
   }
@@ -99,72 +100,73 @@ const ProfilePage = () => {
 
   return (
     <PageContainer>
-      <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-12">
 
-        {/* LEFT COLUMN — IDENTITY */}
-        <div className="space-y-6">
-          <Card>
-            <div className="text-center">
-              <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gray-200 flex items-center justify-center text-2xl font-bold text-gray-600">
-                {profile.name?.charAt(0) || 'U'}
-              </div>
-
-              {!isEditing ? (
-                <>
-                  <h2 className="text-xl font-semibold">{profile.name}</h2>
-
-                  {profile.headline && (
-                    <p className="text-sm text-gray-600 mt-1">
-                      {profile.headline}
-                    </p>
-                  )}
-
-                  {user?.presenceStatus && (
-                    <Badge status={user.presenceStatus} className="mt-2" />
-                  )}
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-6 w-full"
-                    onClick={() => setIsEditing(true)}
-                  >
-                    Edit Profile
-                  </Button>
-                </>
-              ) : (
-                <div className="space-y-4 text-left">
-                  <Input
-                    label="Name"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                  />
-                  <Input
-                    label="Headline"
-                    placeholder="Short professional summary"
-                    value={formData.headline}
-                    onChange={(e) =>
-                      setFormData({ ...formData, headline: e.target.value })
-                    }
-                  />
-                  <div className="flex gap-2 pt-2">
-                    <Button size="sm" onClick={handleUpdate}>
-                      Save
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsEditing(false)}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
+        {/* LEFT COLUMN — IDENTITY (4 cols) */}
+        <div className="md:col-span-4 space-y-6">
+          {/* USER CARD */}
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6 shadow-sm text-center transition-colors">
+            <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-slate-800 text-blue-600 dark:text-blue-500 flex items-center justify-center text-3xl font-bold transition-colors">
+              {profile.name?.charAt(0).toUpperCase() || 'U'}
             </div>
-          </Card>
+
+            {!isEditing ? (
+              <>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white transition-colors">{profile.name}</h2>
+
+                {profile.headline && (
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-2 font-medium transition-colors">
+                    {profile.headline}
+                  </p>
+                )}
+
+                {user?.presenceStatus && (
+                  <div className="mt-4 flex justify-center">
+                    <Badge status={user.presenceStatus} />
+                  </div>
+                )}
+
+                <Button
+                  variant="outline"
+                  className="mt-6 w-full"
+                  onClick={() => setIsEditing(true)}
+                >
+                  Edit Profile
+                </Button>
+              </>
+            ) : (
+              <div className="space-y-4 text-left mt-6">
+                <Input
+                  label="Name"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                />
+                <Input
+                  label="Headline"
+                  placeholder="Short professional summary"
+                  value={formData.headline}
+                  onChange={(e) =>
+                    setFormData({ ...formData, headline: e.target.value })
+                  }
+                />
+                <div className="flex gap-2 pt-2">
+                  <Button size="sm" onClick={handleUpdate} className="flex-1">
+                    Save
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsEditing(false)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* ABOUT CARD */}
           <Card>
@@ -173,12 +175,12 @@ const ProfilePage = () => {
               description="Who you are and what motivates you"
             />
             {!isEditing ? (
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-slate-300 leading-relaxed transition-colors">
                 {profile.about || 'No description added yet.'}
               </p>
             ) : (
               <textarea
-                className="w-full border rounded-md p-2 text-sm"
+                className="w-full border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
                 rows={4}
                 value={formData.about}
                 onChange={(e) =>
@@ -187,60 +189,63 @@ const ProfilePage = () => {
               />
             )}
           </Card>
-
-          {/* LEARNING */}
-          <Card>
-            <CardHeader
-              title="Learning Goals"
-              description="What you want to improve or learn"
-            />
-            {!isEditing ? (
-              <p className="text-sm text-gray-600">
-                {profile.learningGoals || 'Not specified'}
-              </p>
-            ) : (
-              <textarea
-                className="w-full border rounded-md p-2 text-sm"
-                rows={3}
-                value={formData.learningGoals}
-                onChange={(e) =>
-                  setFormData({ ...formData, learningGoals: e.target.value })
-                }
-              />
-            )}
-          </Card>
-
-          {/* TEACHING */}
-          <Card>
-            <CardHeader
-              title="Teaching Style"
-              description="How you prefer to help others learn"
-            />
-            {!isEditing ? (
-              <p className="text-sm text-gray-600">
-                {profile.teachingStyle || 'Not specified'}
-              </p>
-            ) : (
-              <textarea
-                className="w-full border rounded-md p-2 text-sm"
-                rows={3}
-                value={formData.teachingStyle}
-                onChange={(e) =>
-                  setFormData({ ...formData, teachingStyle: e.target.value })
-                }
-              />
-            )}
-          </Card>
         </div>
 
-        {/* RIGHT COLUMN — SKILLS */}
-        <div className="md:col-span-2">
-          <Card>
-            <div className="flex justify-between items-center mb-4">
+        {/* RIGHT COLUMN — DETAILS & SKILLS (8 cols) */}
+        <div className="md:col-span-8 space-y-6">
+
+          {/* LEARNING & TEACHING GRID */}
+          <div className="grid sm:grid-cols-2 gap-6">
+            <Card className="h-full">
               <CardHeader
-                title="Skills"
-                description="What you can teach or want to learn"
+                title="Learning Goals"
+                description="What you want to improve"
               />
+              {!isEditing ? (
+                <p className="text-sm text-gray-600 dark:text-slate-300 leading-relaxed transition-colors">
+                  {profile.learningGoals || 'Not specified'}
+                </p>
+              ) : (
+                <textarea
+                  className="w-full border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+                  rows={4}
+                  value={formData.learningGoals}
+                  onChange={(e) =>
+                    setFormData({ ...formData, learningGoals: e.target.value })
+                  }
+                />
+              )}
+            </Card>
+
+            <Card className="h-full">
+              <CardHeader
+                title="Teaching Style"
+                description="How you help others"
+              />
+              {!isEditing ? (
+                <p className="text-sm text-gray-600 dark:text-slate-300 leading-relaxed transition-colors">
+                  {profile.teachingStyle || 'Not specified'}
+                </p>
+              ) : (
+                <textarea
+                  className="w-full border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+                  rows={4}
+                  value={formData.teachingStyle}
+                  onChange={(e) =>
+                    setFormData({ ...formData, teachingStyle: e.target.value })
+                  }
+                />
+              )}
+            </Card>
+          </div>
+
+          {/* SKILLS */}
+          <Card>
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white transition-colors">Skills</h3>
+                <p className="text-sm text-gray-500 dark:text-slate-400 transition-colors">Manage your expertise and interests</p>
+              </div>
               {!isAddingSkill && (
                 <Button
                   size="sm"
@@ -253,10 +258,12 @@ const ProfilePage = () => {
             </div>
 
             {isAddingSkill && (
-              <AddSkillForm
-                onSuccess={onSkillAdded}
-                onCancel={() => setIsAddingSkill(false)}
-              />
+              <div className="mb-6">
+                <AddSkillForm
+                  onSuccess={onSkillAdded}
+                  onCancel={() => setIsAddingSkill(false)}
+                />
+              </div>
             )}
 
             <SkillsList refreshTrigger={skillRefresh} />

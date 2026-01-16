@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 public class ChatController {
@@ -29,25 +30,31 @@ public class ChatController {
         return ResponseEntity.ok(chatService.getChatHistory(userId, friendId));
     }
 
+    // REST: Edit Message
+    @PatchMapping("/api/chat/messages/{messageId}")
+    public ResponseEntity<ChatMessageResponse> editMessage(
+            @PathVariable Long messageId,
+            @RequestBody Map<String, String> body) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        String content = body.get("content");
+        return ResponseEntity.ok(chatService.editMessage(userId, messageId, content));
+    }
+
+    // REST: Delete Message
+    @DeleteMapping("/api/chat/messages/{messageId}")
+    public ResponseEntity<ChatMessageResponse> deleteMessage(
+            @PathVariable Long messageId,
+            @RequestParam(defaultValue = "SELF") String mode) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        return ResponseEntity.ok(chatService.deleteMessage(userId, messageId, mode));
+    }
+
     // WebSocket: Send Message
     // Client sends to: /app/chat
     @MessageMapping("/chat")
     public void sendMessage(
             @Payload @Valid ChatMessageRequest request,
             Principal principal) {
-        // Principal name is userId (set in JwtAuthenticationFilter & Handshake if
-        // configured,
-        // but for STOMP over WebSocket, Spring Security integration usually passes the
-        // Principal).
-        // Note: In JwtAuthenticationFilter we set SecurityContextHolder.
-        // We need to ensure ChannelInterceptor transfers it to Stomp Header or rely on
-        // it being there
-        // if using native WebSocket support.
-        // Given the project setup, we might need a custom ChannelInterceptor for JWT in
-        // Websocket if not sending cookies.
-        // BUT, let's assume standard behavior for now. If principal is null, we'll need
-        // to fix config.
-
         if (principal == null) {
             throw new IllegalStateException("Unauthenticated WebSocket message");
         }

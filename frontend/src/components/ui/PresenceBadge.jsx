@@ -14,6 +14,7 @@ const PresenceBadge = ({ status, lastSeenAt }) => {
 
     const isOnline = status === 'ONLINE';
     const isBusy = status === 'BUSY';
+    const isInSession = status === 'IN_SESSION';
 
     // Format last seen time
     const getLastSeenText = () => {
@@ -61,6 +62,12 @@ const PresenceBadge = ({ status, lastSeenAt }) => {
     if (isBusy) {
         return (
             <span className="text-xs opacity-90">in a session</span>
+        );
+    }
+
+    if (isInSession) {
+        return (
+            <span className="text-xs opacity-90">in a call</span>
         );
     }
 

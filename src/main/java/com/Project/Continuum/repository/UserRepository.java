@@ -8,15 +8,20 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.Project.Continuum.enums.AuthProvider;
+import java.util.Optional;
+
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    boolean existsByIdAndIsActiveTrue(Long id);
-    @Query("""
-SELECT u FROM User u
-WHERE u.presenceStatus != com.Project.Continuum.enums.PresenceStatus.OFFLINE
-AND (u.lastSeenAt IS NULL OR u.lastSeenAt < :cutoff)
-""")
-    List<User> findUsersToMarkOffline(@Param("cutoff") LocalDateTime cutoff);
+    Optional<User> findByAuthProviderAndProviderUserId(AuthProvider authProvider, String providerUserId);
 
+    boolean existsByIdAndIsActiveTrue(Long id);
+
+    @Query("""
+            SELECT u FROM User u
+            WHERE u.presenceStatus != com.Project.Continuum.enums.PresenceStatus.OFFLINE
+            AND (u.lastSeenAt IS NULL OR u.lastSeenAt < :cutoff)
+            """)
+    List<User> findUsersToMarkOffline(@Param("cutoff") LocalDateTime cutoff);
 
 }

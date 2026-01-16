@@ -1,0 +1,21 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+# ===============================
+# JWT CONFIG (PROD)
+# ===============================
+# In real production, these should be injected via environment variables
+jwt:
+  secret: ${JWT_SECRET:prod-secret-key-must-be-very-long-and-secure}
+  expiration-ms: 3600000 # 1 hour
+
+# ===============================
+# WEB PUSH (VAPID) CONFIG (PROD)
+# ===============================
+push:
+  vapid:
+    public-key: ${VAPID_PUBLIC_KEY}
+    private-key: ${VAPID_PRIVATE_KEY}
+    subject: ${VAPID_SUBJECT}

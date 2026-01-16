@@ -1,26 +1,80 @@
 package com.Project.Continuum.store;
 
 import com.Project.Continuum.enums.PresenceStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * In-Memory Source of Truth for Real-Time Presence.
- * <p>
- * This store handles ephemeral status (ONLINE/BUSY).
- * It delegates persistence of "Last Seen" to the database via PresenceService.
- * <p>
- * Concurrency:
- * Uses ConcurrentHashMap. atomic compute() operations ensure thread safety
- * when transitioning states (e.g. ONLINE -> BUSY during session start).
+ * 
+ * Features:
+ * - Connection counting for multi-tab support
+ * - Thread-safe operations via ConcurrentHashMap
+ * - Automatic status transitions (ONLINE/BUSY/OFFLINE)
+ * 
+ * Key: Only sets OFFLINE when last WebSocket connection closes.
  */
 @Component
 public class PresenceStore {
 
+    private static final Logger log = LoggerFactory.getLogger(PresenceStore.class);
+
     private final Map<Long, UserPresenceData> store = new ConcurrentHashMap<>();
+
+    /**
+     * Increment connection count when WebSocket connects.
+     * Returns the new connection count.
+     */
+    public int addConnection(Long userId) {
+        UserPresenceData data = store.compute(userId, (id, existing) -> {
+            if (existing == null) {
+                return new UserPresenceData(PresenceStatus.ONLINE, LocalDateTime.now(), null, 1);
+            }
+            existing.incrementConnections();
+            existing.setLastSeenAt(LocalDateTime.now());
+            // If was OFFLINE, switch to ONLINE
+            if (existing.getStatus() == PresenceStatus.OFFLINE) {
+                existing.setStatus(PresenceStatus.ONLINE);
+            }
+            return existing;
+        });
+        int count = data.getConnectionCount();
+        log.debug("User {} connected, total connections: {}", userId, count);
+        return count;
+    }
+
+    /**
+     * Decrement connection count when WebSocket disconnects.
+     * Returns true if this was the last connection (user should go OFFLINE).
+     */
+    public boolean removeConnection(Long userId) {
+        AtomicInteger remaining = new AtomicInteger(0);
+
+        store.computeIfPresent(userId, (id, data) -> {
+            data.decrementConnections();
+            remaining.set(data.getConnectionCount());
+            data.setLastSeenAt(LocalDateTime.now());
+            return data;
+        });
+
+        int count = remaining.get();
+        log.debug("User {} disconnected, remaining connections: {}", userId, count);
+        return count <= 0;
+    }
+
+    /**
+     * Get current connection count for a user.
+     */
+    public int getConnectionCount(Long userId) {
+        UserPresenceData data = store.get(userId);
+        return data != null ? data.getConnectionCount() : 0;
+    }
 
     public void setUserStatus(Long userId, PresenceStatus status) {
         store.compute(userId, (id, data) -> {
@@ -28,8 +82,8 @@ public class PresenceStore {
 
             // If reconnecting (ONLINE) but has session, stay BUSY
             if (status == PresenceStatus.ONLINE && hasSession) {
-                if (data == null) { // Should not happen if hasSession is true, but logically
-                    return new UserPresenceData(PresenceStatus.BUSY, LocalDateTime.now(), null);
+                if (data == null) {
+                    return new UserPresenceData(PresenceStatus.BUSY, LocalDateTime.now(), null, 0);
                 }
                 data.setStatus(PresenceStatus.BUSY);
                 data.setLastSeenAt(LocalDateTime.now());
@@ -37,7 +91,7 @@ public class PresenceStore {
             }
 
             if (data == null) {
-                return new UserPresenceData(status, LocalDateTime.now(), null);
+                return new UserPresenceData(status, LocalDateTime.now(), null, 0);
             }
             data.setStatus(status);
             data.setLastSeenAt(LocalDateTime.now());
@@ -48,7 +102,7 @@ public class PresenceStore {
     public void setUserSession(Long userId, Long sessionId) {
         store.compute(userId, (id, data) -> {
             if (data == null) {
-                return new UserPresenceData(PresenceStatus.BUSY, LocalDateTime.now(), sessionId);
+                return new UserPresenceData(PresenceStatus.BUSY, LocalDateTime.now(), sessionId, 0);
             }
             data.setActiveSessionId(sessionId);
             return data;
@@ -76,16 +130,40 @@ public class PresenceStore {
         store.remove(userId);
     }
 
+    /**
+     * Check if a user is stale (no recent activity).
+     */
+    public boolean isStale(Long userId, LocalDateTime cutoff) {
+        UserPresenceData data = store.get(userId);
+        if (data == null)
+            return true;
+        LocalDateTime lastSeen = data.getLastSeenAt();
+        return lastSeen == null || lastSeen.isBefore(cutoff);
+    }
+
+    /**
+     * Count all users currently online (not OFFLINE).
+     * Used for dashboard metrics.
+     */
+    public long getOnlineUserCount() {
+        return store.values().stream()
+                .filter(d -> d.getStatus() != PresenceStatus.OFFLINE && d.getConnectionCount() > 0)
+                .count();
+    }
+
     // Internal Data Class
     private static class UserPresenceData {
         private PresenceStatus status;
         private LocalDateTime lastSeenAt;
         private Long activeSessionId;
+        private int connectionCount;
 
-        public UserPresenceData(PresenceStatus status, LocalDateTime lastSeenAt, Long activeSessionId) {
+        public UserPresenceData(PresenceStatus status, LocalDateTime lastSeenAt, Long activeSessionId,
+                int connectionCount) {
             this.status = status;
             this.lastSeenAt = lastSeenAt;
             this.activeSessionId = activeSessionId;
+            this.connectionCount = connectionCount;
         }
 
         public PresenceStatus getStatus() {
@@ -110,6 +188,20 @@ public class PresenceStore {
 
         public void setActiveSessionId(Long activeSessionId) {
             this.activeSessionId = activeSessionId;
+        }
+
+        public int getConnectionCount() {
+            return connectionCount;
+        }
+
+        public void incrementConnections() {
+            this.connectionCount++;
+        }
+
+        public void decrementConnections() {
+            if (this.connectionCount > 0) {
+                this.connectionCount--;
+            }
         }
     }
 }

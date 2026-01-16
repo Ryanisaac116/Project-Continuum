@@ -1,0 +1,253 @@
+---
+alwaysApply: false
+---
+# Cursor Rules — CONTINUUM (STRICT MODE)
+
+These rules are MANDATORY.
+All suggestions, refactors, and fixes must comply.
+Continuum is treated as a production-grade system, not a demo or tutorial.
+
+If a suggestion violates these rules, it must NOT be made.
+
+----------------------------------------------------------------
+
+## 1. Project Identity (NON-NEGOTIABLE)
+
+Project Name: Continuum  
+Type: Full-stack peer-to-peer skill exchange platform  
+Architecture Priority: Correctness > Scalability > UX > Convenience  
+
+Continuum is designed as:
+- A real system with evolving users
+- A learning + production hybrid
+- An interview-grade architecture project
+
+Do NOT simplify core logic for convenience.
+
+----------------------------------------------------------------
+
+## 2. Technology Stack (DO NOT CHANGE UNLESS ASKED)
+
+### Backend
+- Java
+- Spring Boot
+- REST APIs + WebSocket
+- JWT authentication
+- Relational database (normalized)
+
+### Frontend
+- React
+- React Router
+- Tailwind CSS
+- Context-based auth
+- Shared WebSocket client
+
+### Database
+- Explicit tables (users, friends, skills, user_skills, exchange_requests, chat_messages, presence)
+- No implicit or auto-generated domain logic
+
+----------------------------------------------------------------
+
+## 3. Core Domain Rules (ABSOLUTE)
+
+### 3.1 Users
+- A user is the atomic identity
+- No anonymous flows
+- Auth state must always be validated server-side
+
+### 3.2 Skills
+- Skills are explicit entities
+- A user has:
+  - skills they can teach
+  - skills they want to learn
+- Skills must NOT be inferred or auto-matched without rules
+
+### 3.3 Exchanges
+- An exchange is a **time-bound interaction**
+- Exchanges must complete before:
+  - friendships are formed
+  - chat is unlocked
+- Do NOT bypass exchange validation
+
+### 3.4 Friends System (CRITICAL)
+- Friendship is NOT social-follow
+- Friendship is permission-based
+
+Rules:
+- Friend entity contains:
+  - user1
+  - user2
+  - requester
+  - status (PENDING / ACCEPTED / REJECTED)
+- Only ACCEPTED friends:
+  - can chat
+  - can see presence
+- Friend creation must be explicit and auditable
+
+----------------------------------------------------------------
+
+## 4. Chat System Rules (STRICT)
+
+Chat is a **privileged feature**, not a utility.
+
+### Permissions
+- Chat allowed ONLY between accepted friends
+- Backend must validate this on every message
+
+### Message Model
+- Messages are immutable records with controlled updates
+- Message edits and deletes must:
+  - preserve message identity
+  - be idempotent
+  - be reconciled by ID on the client
+
+### Message Actions
+Allowed:
+- Edit message
+- Delete for self
+- Delete for both
+- Reply to a message
+
+Forbidden:
+- Silent message mutation
+- Client-only message deletion
+- Message creation without persistence
+
+### WebSocket Rules
+- WebSocket connection must be shared
+- No reconnect loops
+- No per-page socket creation
+- Message updates must merge by ID
+- Presence updates must be event-driven
+
+Polling is allowed ONLY as fallback.
+
+----------------------------------------------------------------
+
+## 5. Presence System Rules
+
+Presence is real-time state, not UI decoration.
+
+Rules:
+- Presence states: ONLINE, OFFLINE, LAST_SEEN
+- Presence must be derived from server authority
+- Client must NOT invent presence
+- Presence updates must not spam clients
+
+----------------------------------------------------------------
+
+## 6. Layout & Navigation Architecture (CRITICAL)
+
+### Global Layout
+- AppLayout is the ONLY global shell
+- Desktop: top navigation
+- Mobile: bottom navigation (fixed, height = h-16)
+
+### Scroll Ownership Rule (ABSOLUTE)
+Exactly ONE scroll container per page.
+
+Violations will cause bugs.
+
+### Normal Pages
+- `<main>` is the scroll container
+- Must reserve space for mobile bottom nav
+- Content must never be hidden under fixed UI
+
+### Chat Pages
+- Full-screen routes
+- Must opt out of:
+  - mobile bottom nav
+  - global padding
+- Chat controls its own scrolling
+- Input pinned to bottom
+
+----------------------------------------------------------------
+
+## 7. CSS & Styling Rules (ENFORCED)
+
+Forbidden patterns:
+- Negative margins for layout fixes
+- Magic numbers
+- Hardcoded viewport math
+- calc(100vh - Xpx)
+- Multiple nested scroll containers
+- Blind use of `h-screen`
+
+Preferred:
+- Structural fixes
+- Flexbox with explicit scroll ownership
+- Tailwind utilities used intentionally
+
+----------------------------------------------------------------
+
+## 8. Database Rules (STRICT)
+
+- Tables must represent domain concepts explicitly
+- No hidden logic in queries
+- No business logic in frontend assumptions
+- Referential integrity must be respected
+- Deletes must be logical where needed (soft delete)
+
+Schema changes require justification.
+
+----------------------------------------------------------------
+
+## 9. Backend Rules (STRICT)
+
+- Backend is the source of truth
+- Frontend must never assume success
+- Every sensitive action must be validated server-side
+- Controllers must remain thin
+- Services own business logic
+- Repositories must not encode business rules
+
+----------------------------------------------------------------
+
+## 10. Code Modification Policy
+
+Before making ANY change:
+1. Identify the correct layer (DB / backend / frontend / layout)
+2. Justify why the change belongs there
+3. Avoid cascading refactors unless explicitly requested
+
+Cursor must:
+- Ask before major refactors
+- Explain WHY a fix works
+- Prefer minimal, targeted changes
+
+----------------------------------------------------------------
+
+## 11. Forbidden Suggestions (HARD NO)
+
+❌ “Quick CSS hacks”  
+❌ “Just hide overflow”  
+❌ “Force height with vh”  
+❌ “Move logic to frontend for simplicity”  
+❌ “Skip backend validation”  
+❌ “Refactor everything”  
+❌ “This is simpler, trust me” solutions  
+
+----------------------------------------------------------------
+
+## 12. Expected Cursor Behavior
+
+Cursor must:
+- Respect architectural decisions
+- Treat Continuum as production code
+- Optimize for long-term maintainability
+- Explain root causes clearly
+- Avoid assumptions
+- Ask clarifying questions only when necessary
+
+----------------------------------------------------------------
+
+## 13. Guiding Principle (FINAL)
+
+> Fix architecture, not symptoms.  
+> Correctness first, convenience last.
+
+Any solution that violates system integrity is unacceptable.
+
+----------------------------------------------------------------
+
+END OF RULES

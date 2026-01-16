@@ -5,7 +5,6 @@ import { PageContainer } from '../components/layout/PageContainer';
 import ExchangesDashboard from '../components/exchanges/ExchangesDashboard';
 import ExchangeIntent from '../components/exchanges/ExchangeIntent';
 import MatchingScreen from '../components/exchanges/MatchingScreen';
-import ExchangeSession from '../components/exchanges/ExchangeSession';
 
 const ExchangesPage = () => {
   return (
@@ -20,11 +19,11 @@ const ExchangesPage = () => {
         {/* 3️⃣ Matching / Waiting */}
         <Route path="matching" element={<MatchingScreen />} />
 
-        {/* 4️⃣ Active Exchange Session */}
-        <Route path="session/:sessionId" element={<ExchangeSession />} />
+        {/* Call starts automatically after match - no session page needed */}
       </Routes>
     </PageContainer>
   );
 };
 
 export default ExchangesPage;
+

@@ -4,7 +4,7 @@ import PresenceBadge from '../components/ui/PresenceBadge';
 import { useAuth } from '../auth/AuthContext';
 import chatApi from '../api/chat';
 import friendsApi from '../api/friends';
-import apiClient from '../api/client';
+import apiClient, { getToken } from '../api/client';
 import {
     connectChatSocket,
     sendChatMessage,
@@ -106,6 +106,15 @@ const ChatPage = () => {
     const [highlightedMessageId, setHighlightedMessageId] = useState(null);
     const messagesContainerRef = useRef(null);
 
+    // Desktop: Hover action bar
+    const [hoveredMessageId, setHoveredMessageId] = useState(null);
+
+    // Desktop: Right-click context menu
+    const [contextMenu, setContextMenu] = useState(null); // { x, y, message }
+
+    // Copy feedback with position
+    const [copyFeedback, setCopyFeedback] = useState(null); // { x, y } or null
+
     const messagesEndRef = useRef(null);
     const deleteMenuRef = useRef(null);
 
@@ -119,8 +128,25 @@ const ChatPage = () => {
                 setShowChatMenu(false);
             }
         };
+        // Close context menu on click
+        const handleClickAnywhere = () => setContextMenu(null);
+
+        // Escape key to clear selection
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                clearSelection();
+                setContextMenu(null);
+            }
+        };
+
         document.addEventListener('click', handleClickOutside);
-        return () => document.removeEventListener('click', handleClickOutside);
+        document.addEventListener('click', handleClickAnywhere);
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('click', handleClickOutside);
+            document.removeEventListener('click', handleClickAnywhere);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
     }, []);
 
     const scrollToBottom = useCallback(() => {
@@ -191,7 +217,7 @@ const ChatPage = () => {
                 const historyRes = await chatApi.getChatHistory(friendId);
                 setMessages(historyRes.data);
 
-                const token = localStorage.getItem('token');
+                const token = getToken();
                 if (token && !isChatConnected()) {
                     connectChatSocket(
                         token,
@@ -448,7 +474,8 @@ const ChatPage = () => {
             if (idsToDelete.includes(msg.id)) {
                 const isSender = msg.senderId === user?.id;
                 if (mode === 'BOTH') {
-                    return { ...msg, isDeletedForSender: true, isDeletedForReceiver: true };
+                    // Update: set deletedGlobally for optimistic update
+                    return { ...msg, isDeletedGlobally: true };
                 } else {
                     return isSender
                         ? { ...msg, isDeletedForSender: true }
@@ -473,29 +500,48 @@ const ChatPage = () => {
 
     const copySelected = async () => {
         const text = selectedMessages.map((m) => m.content).join('\n');
+
+        // Get position of first selected message for toast
+        const firstMsgId = [...selectedIds][0];
+        const msgEl = document.querySelector(`[data-message-id="${firstMsgId}"]`);
+        const rect = msgEl?.getBoundingClientRect();
+        // Position beside the message: use center of message vertically
+        const pos = rect
+            ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, isRight: rect.left > window.innerWidth / 2 }
+            : { x: window.innerWidth / 2, y: 100, isRight: false };
+
         try {
             await navigator.clipboard.writeText(text);
         } catch (err) {
-            console.error('Failed to copy:', err);
+            // Fallback for mobile/older browsers
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
         }
+
+        setCopyFeedback(pos);
+        setTimeout(() => setCopyFeedback(null), 1500);
         clearSelection();
     };
 
     if (loading) {
         return (
-            <div className="h-screen flex items-center justify-center bg-gray-50">
-                <div className="text-gray-500">Loading chat...</div>
+            <div className="h-screen flex items-center justify-center bg-white dark:bg-black transition-colors">
+                <div className="text-gray-500 dark:text-slate-500">Loading chat...</div>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-                <div className="text-red-500 mb-4 text-center">{error}</div>
+            <div className="h-screen flex flex-col items-center justify-center bg-white dark:bg-black p-4 transition-colors">
+                <div className="text-red-500 dark:text-red-400 mb-4 text-center">{error}</div>
                 <button
                     onClick={() => navigate('/friends')}
-                    className="text-gray-900 hover:underline flex items-center gap-2"
+                    className="text-gray-900 dark:text-white hover:underline flex items-center gap-2"
                 >
                     <BackIcon /> Back to Friends
                 </button>
@@ -506,15 +552,29 @@ const ChatPage = () => {
     const isSelectionMode = selectedIds.size > 0;
 
     return (
-        <div className="h-screen flex flex-col bg-gray-100" style={{ height: '100dvh' }}>
+        <div className="flex flex-col h-full min-h-0 bg-gray-50 dark:bg-slate-950 transition-colors duration-300">
+
+            {/* Copy feedback toast - positioned beside message */}
+            {copyFeedback && (
+                <div
+                    className="fixed bg-black text-white px-3 py-1.5 rounded-full shadow-lg z-50 text-sm pointer-events-none animate-pulse"
+                    style={{
+                        left: copyFeedback.isRight ? copyFeedback.x - 140 : copyFeedback.x + 60,
+                        top: copyFeedback.y,
+                        transform: 'translateY(-50%)'
+                    }}
+                >
+                    ✓ Copied!
+                </div>
+            )}
             {/* Header */}
-            <div className="sticky top-0 z-10 bg-black text-white shadow-md">
+            <div className="sticky top-0 z-10 bg-white dark:bg-black text-gray-900 dark:text-white shadow-md border-b border-gray-200 dark:border-gray-800 transition-colors">
                 {isSelectionMode ? (
                     // Selection Action Bar
                     <div className="px-2 sm:px-3 py-2 sm:py-3 flex items-center gap-1 sm:gap-3">
                         <button
                             onClick={clearSelection}
-                            className="p-3 sm:p-2 rounded-full hover:bg-white/10 active:bg-white/20"
+                            className="p-3 sm:p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 active:bg-gray-200 dark:active:bg-white/20"
                         >
                             <CloseIcon />
                         </button>
@@ -565,17 +625,17 @@ const ChatPage = () => {
                                 </button>
 
                                 {showDeleteMenu && (
-                                    <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-xl py-1 min-w-[200px] z-20 text-gray-900">
+                                    <div className="absolute right-0 top-full mt-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-xl py-1 min-w-[200px] z-20 text-gray-900 dark:text-white">
                                         <button
                                             onClick={() => handleDelete('SELF')}
-                                            className="w-full px-4 py-3 text-left hover:bg-gray-100 active:bg-gray-200 text-sm"
+                                            className="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-slate-700 active:bg-gray-200 dark:active:bg-slate-600 text-sm"
                                         >
                                             Delete for me
                                         </button>
                                         {allSelectedAreMine && (
                                             <button
                                                 onClick={() => handleDelete('BOTH')}
-                                                className="w-full px-4 py-3 text-left hover:bg-gray-100 active:bg-gray-200 text-sm text-red-600"
+                                                className="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-slate-700 active:bg-gray-200 dark:active:bg-slate-600 text-sm text-red-500 dark:text-red-400"
                                             >
                                                 Delete for everyone
                                             </button>
@@ -590,15 +650,15 @@ const ChatPage = () => {
                     <div className="px-3 py-3 flex items-center gap-3">
                         <button
                             onClick={() => navigate('/friends')}
-                            className="p-2 -ml-1 rounded-full hover:bg-white/10 active:bg-white/20"
+                            className="p-2 -ml-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 active:bg-gray-200 dark:active:bg-white/20"
                         >
                             <BackIcon />
                         </button>
-                        <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-white font-medium">
+                        <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-gray-700 dark:text-white font-medium border border-gray-300 dark:border-slate-600">
                             {friend?.name?.charAt(0)?.toUpperCase() || '?'}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">{friend?.name}</div>
+                            <div className="font-medium truncate text-gray-900 dark:text-white">{friend?.name}</div>
                             <PresenceBadge
                                 status={friend?.presenceStatus}
                                 lastSeenAt={friend?.lastSeenAt}
@@ -612,13 +672,13 @@ const ChatPage = () => {
                                     e.stopPropagation();
                                     setShowChatMenu(!showChatMenu);
                                 }}
-                                className="p-2 rounded-full hover:bg-white/10 active:bg-white/20"
+                                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 active:bg-gray-200 dark:active:bg-white/20"
                             >
                                 <MoreIcon />
                             </button>
 
                             {showChatMenu && (
-                                <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-xl py-1 min-w-[180px] z-20 text-gray-900">
+                                <div className="absolute right-0 top-full mt-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-xl py-1 min-w-[180px] z-20 text-gray-900 dark:text-white">
                                     <button
                                         onClick={async () => {
                                             setShowChatMenu(false);
@@ -632,7 +692,7 @@ const ChatPage = () => {
                                                 }
                                             }
                                         }}
-                                        className="w-full px-4 py-3 text-left hover:bg-gray-100 active:bg-gray-200 text-sm text-red-600"
+                                        className="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-slate-700 active:bg-gray-200 dark:active:bg-slate-600 text-sm text-red-500 dark:text-red-400"
                                     >
                                         Clear chat for me
                                     </button>
@@ -646,13 +706,13 @@ const ChatPage = () => {
             {/* Messages Area */}
             <div
                 ref={messagesContainerRef}
-                className="flex-1 overflow-y-auto px-3 py-3"
+                className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 py-3"
                 onClick={() => {
                     if (selectedIds.size > 0) clearSelection();
                 }}
             >
                 {messages.length === 0 ? (
-                    <div className="text-center text-gray-500 py-10 bg-white rounded-xl mt-4 shadow-sm">
+                    <div className="text-center text-gray-500 dark:text-slate-500 py-10 bg-white/50 dark:bg-slate-900/50 rounded-xl mt-4 shadow-sm border border-gray-200 dark:border-slate-800">
                         No messages yet. Say hello! 👋
                     </div>
                 ) : (() => {
@@ -660,13 +720,14 @@ const ChatPage = () => {
                     const visibleMessages = messages.filter((m) => {
                         const isMe = m.senderId === user?.id;
                         const isDeleted = isMe ? m.isDeletedForSender : m.isDeletedForReceiver;
-                        const isDeletedForBoth = m.isDeletedForSender && m.isDeletedForReceiver;
-                        return !isDeleted || isDeletedForBoth;
+                        const isDeletedGlobally = m.isDeletedGlobally;
+                        // Show if not deleted for me, OR if deleted globally (tombstone)
+                        return !isDeleted || isDeletedGlobally;
                     });
 
                     if (visibleMessages.length === 0) {
                         return (
-                            <div className="text-center text-gray-500 py-10 bg-white rounded-xl mt-4 shadow-sm">
+                            <div className="text-center text-gray-500 dark:text-slate-500 py-10 bg-white/50 dark:bg-slate-900/50 rounded-xl mt-4 shadow-sm border border-gray-200 dark:border-slate-800">
                                 No messages yet. Say hello! 👋
                             </div>
                         );
@@ -677,12 +738,12 @@ const ChatPage = () => {
                             {messages.map((msg, index) => {
                                 const isMe = msg.senderId === user?.id;
                                 const isDeleted = isMe ? msg.isDeletedForSender : msg.isDeletedForReceiver;
-                                const isDeletedForBoth = msg.isDeletedForSender && msg.isDeletedForReceiver;
+                                const isDeletedGlobally = msg.isDeletedGlobally;
                                 const isSelected = selectedIds.has(msg.id);
                                 const isEditing = editingId === msg.id;
                                 const isHighlighted = highlightedMessageId === msg.id;
 
-                                if (isDeleted && !isDeletedForBoth) {
+                                if (isDeleted && !isDeletedGlobally) {
                                     return null;
                                 }
 
@@ -697,7 +758,7 @@ const ChatPage = () => {
                                         {/* Day separator */}
                                         {showDateSeparator && (
                                             <div className="flex justify-center my-3">
-                                                <span className="px-3 py-1 bg-gray-200 text-gray-600 text-xs rounded-full shadow-sm">
+                                                <span className="px-3 py-1 bg-gray-200 dark:bg-slate-800 text-gray-600 dark:text-slate-400 text-xs rounded-full shadow-sm border border-gray-300 dark:border-slate-700 transition-colors">
                                                     {formatDateSeparator(msg.sentAt)}
                                                 </span>
                                             </div>
@@ -705,9 +766,9 @@ const ChatPage = () => {
                                         <div
                                             data-message-id={msg.id}
                                             className={`flex ${isMe ? 'justify-end' : 'justify-start'} relative transition-colors duration-300 ${isHighlighted
-                                                ? 'bg-yellow-200/80 -mx-3 px-3 py-1.5 rounded-lg'
+                                                ? 'bg-blue-900/40 -mx-3 px-3 py-1.5 rounded-lg'
                                                 : isSelected
-                                                    ? 'bg-blue-200/80 -mx-3 px-3 py-1.5 rounded-lg ring-2 ring-blue-400'
+                                                    ? 'bg-blue-900/30 -mx-3 px-3 py-1.5 rounded-lg ring-1 ring-blue-500/50'
                                                     : ''
                                                 }`}
                                             style={{
@@ -717,7 +778,7 @@ const ChatPage = () => {
                                             // Swipe-to-reply (touch)
                                             onTouchStart={(e) => {
                                                 handleSwipeStart(e, msg);
-                                                handlePressStart(msg.id, isDeletedForBoth);
+                                                handlePressStart(msg.id, isDeletedGlobally);
                                             }}
                                             onTouchMove={(e) => {
                                                 handleSwipeMove(e);
@@ -731,12 +792,21 @@ const ChatPage = () => {
                                                 handleSwipeEnd();
                                                 handlePressCancel();
                                             }}
+                                            // Desktop: Hover for action bar
+                                            onMouseEnter={() => setHoveredMessageId(msg.id)}
+                                            onMouseLeave={() => setHoveredMessageId(null)}
+                                            // Desktop: Right-click context menu
+                                            onContextMenu={(e) => {
+                                                if (!isDeletedGlobally) {
+                                                    e.preventDefault();
+                                                    setContextMenu({ x: e.clientX, y: e.clientY, message: msg, isMe });
+                                                }
+                                            }}
                                             // Long-press for selection (mouse/desktop)
-                                            onMouseDown={() => handlePressStart(msg.id, isDeletedForBoth)}
+                                            onMouseDown={() => handlePressStart(msg.id, isDeletedGlobally)}
                                             onMouseUp={handlePressEnd}
-                                            onMouseLeave={handlePressEnd}
                                             // Quick tap in selection mode
-                                            onClick={(e) => handleQuickTap(e, msg.id, isDeletedForBoth)}
+                                            onClick={(e) => handleQuickTap(e, msg.id, isDeletedGlobally)}
                                         >
                                             {/* Reply indicator on swipe */}
                                             {currentSwipeOffset > 20 && (
@@ -747,32 +817,75 @@ const ChatPage = () => {
                                                     <ReplyIcon />
                                                 </div>
                                             )}
+
+                                            {/* Desktop: Hover action bar (hidden on touch devices) */}
+                                            {hoveredMessageId === msg.id && !isDeletedGlobally && !isEditing && (
+                                                <div
+                                                    className={`absolute top-0 hidden md:flex items-center gap-1 bg-white dark:bg-slate-800 shadow-lg rounded-full px-2 py-1 border border-gray-200 dark:border-slate-700 z-10 transition-colors ${isMe ? 'right-full mr-2' : 'left-full ml-2'}`}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <button
+                                                        onClick={() => {
+                                                            setReplyingTo(msg);
+                                                            setHoveredMessageId(null);
+                                                        }}
+                                                        className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white"
+                                                        title="Reply"
+                                                    >
+                                                        <ReplyIcon />
+                                                    </button>
+                                                    {isMe && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditingId(msg.id);
+                                                                setEditContent(msg.content);
+                                                                setHoveredMessageId(null);
+                                                            }}
+                                                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white"
+                                                            title="Edit"
+                                                        >
+                                                            <EditIcon />
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedIds(new Set([msg.id]));
+                                                            setShowDeleteMenu(true);
+                                                            setHoveredMessageId(null);
+                                                        }}
+                                                        className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300"
+                                                        title="Delete"
+                                                    >
+                                                        <TrashIcon />
+                                                    </button>
+                                                </div>
+                                            )}
                                             <div
                                                 className={`max-w-[80%] px-4 py-2 rounded-2xl select-none transition-all ${isSelected ? 'ring-2 ring-blue-500' : ''
-                                                    } ${isDeletedForBoth
-                                                        ? 'bg-gray-200 text-gray-500 italic'
+                                                    } ${isDeletedGlobally
+                                                        ? 'bg-gray-100 dark:bg-slate-800/50 text-gray-500 dark:text-slate-500 italic border border-gray-200 dark:border-slate-700/50'
                                                         : isMe
-                                                            ? 'bg-black text-white'
-                                                            : 'bg-white text-gray-900 shadow-sm'
+                                                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                                                            : 'bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-200 shadow-sm border border-gray-200 dark:border-slate-700'
                                                     }`}
                                             >
                                                 {/* Reply quote if this is a reply - click to scroll to original */}
-                                                {msg.replyToContent && !isDeletedForBoth && (
+                                                {msg.replyToContent && !isDeletedGlobally && (
                                                     <div
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            scrollToMessage(msg.replyToMessageId);
+                                                            scrollToMessage(msg.replyToId);
                                                         }}
-                                                        className={`text-xs mb-2 pb-2 border-l-2 pl-2 cursor-pointer hover:opacity-80 ${isMe ? 'border-gray-400 text-gray-300' : 'border-blue-400 text-gray-500'
+                                                        className={`text-xs mb-2 pb-2 border-l-2 pl-2 cursor-pointer hover:opacity-80 ${isMe ? 'border-blue-400/50 text-blue-100' : 'border-gray-300 dark:border-slate-600 text-gray-500 dark:text-slate-400'
                                                             }`}
                                                     >
                                                         <div className="font-medium text-[10px] opacity-75">
-                                                            {msg.replyToSenderId === user?.id ? 'You' : friend?.name}
+                                                            {msg.replyToSenderName || (msg.replyToSenderId === user?.id ? 'You' : friend?.name)}
                                                         </div>
                                                         <div className="truncate">{msg.replyToContent}</div>
                                                     </div>
                                                 )}
-                                                {isDeletedForBoth ? (
+                                                {isDeletedGlobally ? (
                                                     <div className="text-sm">🚫 This message was deleted</div>
                                                 ) : isEditing ? (
                                                     <div className="space-y-2">
@@ -780,7 +893,7 @@ const ChatPage = () => {
                                                             type="text"
                                                             value={editContent}
                                                             onChange={(e) => setEditContent(e.target.value)}
-                                                            className="w-full px-3 py-2 rounded-lg border text-black text-sm"
+                                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                                             autoFocus
                                                             onClick={(e) => e.stopPropagation()}
                                                             onKeyDown={(e) => {
@@ -791,13 +904,13 @@ const ChatPage = () => {
                                                         <div className="flex gap-2 justify-end">
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); cancelEdit(); }}
-                                                                className="px-3 py-1.5 text-xs text-gray-600 hover:text-gray-900"
+                                                                className="px-3 py-1.5 text-xs text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white"
                                                             >
                                                                 Cancel
                                                             </button>
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); handleEdit(); }}
-                                                                className="px-3 py-1.5 text-xs bg-black text-white rounded-full hover:bg-gray-800"
+                                                                className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-full hover:bg-blue-500"
                                                             >
                                                                 Save
                                                             </button>
@@ -806,7 +919,7 @@ const ChatPage = () => {
                                                 ) : (
                                                     <>
                                                         <div className="text-sm break-words whitespace-pre-wrap">{msg.content}</div>
-                                                        <div className={`text-xs mt-1 flex items-center gap-1 justify-end ${isMe ? 'text-gray-400' : 'text-gray-500'
+                                                        <div className={`text-xs mt-1 flex items-center gap-1 justify-end ${isMe ? 'text-blue-200' : 'text-gray-400 dark:text-slate-500'
                                                             }`}>
                                                             {msg.editedAt && <span className="italic">edited</span>}
                                                             <span>{formatTime(msg.sentAt)}</span>
@@ -824,49 +937,116 @@ const ChatPage = () => {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Reply Preview */}
-            {
-                replyingTo && (
-                    <div className="px-3 py-2 bg-gray-100 border-t border-l-4 border-l-blue-500 flex items-center gap-2">
-                        <div className="flex-1 min-w-0">
-                            <div className="text-xs text-blue-600 font-medium">
+            {/* Bottom Section: Reply Bar + Input - pushed to bottom via mt-auto */}
+            <div className="bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 transition-colors">
+                {/* Reply Preview */}
+                {replyingTo && (
+                    <div className="px-3 py-1.5 bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center gap-2">
+                        <div className="border-l-2 border-blue-500 pl-2 flex-1 min-w-0">
+                            <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
                                 Replying to {replyingTo.senderId === user?.id ? 'yourself' : friend?.name}
                             </div>
-                            <div className="text-sm text-gray-600 truncate">{replyingTo.content}</div>
+                            <div className="text-sm text-gray-600 dark:text-slate-400 truncate">{replyingTo.content}</div>
                         </div>
                         <button
                             onClick={() => setReplyingTo(null)}
-                            className="p-1 rounded-full hover:bg-gray-200"
+                            className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white"
                         >
                             <CloseIcon />
                         </button>
                     </div>
-                )
-            }
+                )}
 
-            {/* Input */}
-            <form onSubmit={handleSend} className="sticky bottom-0 p-3 bg-white border-t">
-                <div className="flex gap-2 items-center">
-                    <input
-                        type="text"
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Type a message..."
-                        className="flex-1 px-4 py-3 bg-gray-100 rounded-full outline-none focus:ring-2 focus:ring-black text-sm"
-                        disabled={!socketConnected}
-                    />
+                {/* Input */}
+                <form onSubmit={handleSend} className="p-2">
+                    <div className="flex gap-2 items-center">
+                        <input
+                            type="text"
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            placeholder="Type a message..."
+                            className="flex-1 px-4 py-3 bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-white rounded-full outline-none focus:ring-2 focus:ring-blue-600 border border-gray-200 dark:border-slate-700 placeholder:text-gray-500 dark:placeholder:text-slate-500 text-sm transition-colors"
+                            disabled={!socketConnected}
+                        />
+                        <button
+                            type="submit"
+                            disabled={!newMessage.trim() || !socketConnected}
+                            className="p-3 bg-blue-600 text-white rounded-full hover:bg-blue-500 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-600 disabled:cursor-not-allowed transition transform active:scale-95"
+                        >
+                            <SendIcon />
+                        </button>
+                    </div>
+                    {!socketConnected && (
+                        <div className="text-xs text-orange-500 dark:text-orange-400 mt-1 text-center">Connecting...</div>
+                    )}
+                </form>
+            </div>
+
+            {/* Desktop: Right-click context menu */}
+            {contextMenu && (
+                <div
+                    className="fixed bg-white dark:bg-slate-800 rounded-xl shadow-2xl py-2 min-w-[160px] z-50 border border-gray-200 dark:border-slate-700 text-gray-900 dark:text-white"
+                    style={{
+                        left: Math.min(contextMenu.x, window.innerWidth - 180),
+                        top: Math.min(contextMenu.y, window.innerHeight - 200)
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                >
                     <button
-                        type="submit"
-                        disabled={!newMessage.trim() || !socketConnected}
-                        className="p-3 bg-black text-white rounded-full hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition active:bg-gray-900"
+                        onClick={() => {
+                            setReplyingTo(contextMenu.message);
+                            setContextMenu(null);
+                        }}
+                        className="w-full px-4 py-2.5 text-left hover:bg-gray-100 dark:hover:bg-slate-700 text-sm flex items-center gap-3"
                     >
-                        <SendIcon />
+                        <ReplyIcon /> Reply
+                    </button>
+                    <button
+                        onClick={async () => {
+                            const text = contextMenu.message.content;
+                            try {
+                                await navigator.clipboard.writeText(text);
+                            } catch (err) {
+                                const textarea = document.createElement('textarea');
+                                textarea.value = text;
+                                document.body.appendChild(textarea);
+                                textarea.select();
+                                document.execCommand('copy');
+                                document.body.removeChild(textarea);
+                            }
+                            setCopyFeedback({ x: contextMenu.x, y: contextMenu.y, isRight: contextMenu.x > window.innerWidth / 2 });
+                            setTimeout(() => setCopyFeedback(null), 1500);
+                            setContextMenu(null);
+                        }}
+                        className="w-full px-4 py-2.5 text-left hover:bg-gray-100 dark:hover:bg-slate-700 text-sm flex items-center gap-3"
+                    >
+                        <CopyIcon /> Copy
+                    </button>
+                    {contextMenu.isMe && (
+                        <button
+                            onClick={() => {
+                                setEditingId(contextMenu.message.id);
+                                setEditContent(contextMenu.message.content);
+                                setContextMenu(null);
+                            }}
+                            className="w-full px-4 py-2.5 text-left hover:bg-gray-100 dark:hover:bg-slate-700 text-sm flex items-center gap-3"
+                        >
+                            <EditIcon /> Edit
+                        </button>
+                    )}
+                    <div className="border-t border-gray-200 dark:border-slate-700 my-1" />
+                    <button
+                        onClick={() => {
+                            setSelectedIds(new Set([contextMenu.message.id]));
+                            setShowDeleteMenu(true);
+                            setContextMenu(null);
+                        }}
+                        className="w-full px-4 py-2.5 text-left hover:bg-gray-100 dark:hover:bg-slate-700 text-sm text-red-500 dark:text-red-400 flex items-center gap-3"
+                    >
+                        <TrashIcon /> Delete
                     </button>
                 </div>
-                {!socketConnected && (
-                    <div className="text-xs text-orange-600 mt-1 text-center">Connecting...</div>
-                )}
-            </form>
+            )}
         </div>
     );
 };

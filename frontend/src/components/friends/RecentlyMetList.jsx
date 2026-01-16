@@ -13,14 +13,14 @@ import { Badge } from '../ui/Badge';
 const RecentlyMetList = ({ users, onSendRequest, pendingActions = {} }) => {
     if (!users || users.length === 0) {
         return (
-            <div className="p-4 text-center text-gray-500 text-sm">
+            <div className="p-4 text-center text-gray-500 dark:text-slate-500 text-sm">
                 No recent exchanges yet. Start matching to meet new people!
             </div>
         );
     }
 
     return (
-        <ul className="divide-y divide-gray-100">
+        <ul className="divide-y divide-gray-200 dark:divide-slate-800">
             {users.map((user) => {
                 const isPending = pendingActions[`send-${user.userId}`];
 
@@ -29,13 +29,13 @@ const RecentlyMetList = ({ users, onSendRequest, pendingActions = {} }) => {
                         {/* User Info */}
                         <div className="flex items-center gap-3">
                             {/* Avatar placeholder */}
-                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-medium">
+                            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-500 dark:text-slate-400 font-medium border border-gray-200 dark:border-slate-700 transition-colors">
                                 {user.name?.charAt(0)?.toUpperCase() || '?'}
                             </div>
 
                             <div>
-                                <div className="font-medium text-gray-900">{user.name}</div>
-                                <div className="text-xs text-gray-500">
+                                <div className="font-medium text-gray-900 dark:text-white transition-colors">{user.name}</div>
+                                <div className="text-xs text-gray-500 dark:text-slate-500 transition-colors">
                                     {user.lastSessionAt
                                         ? `Last session: ${formatRelativeTime(user.lastSessionAt)}`
                                         : 'Recently met'
@@ -52,8 +52,8 @@ const RecentlyMetList = ({ users, onSendRequest, pendingActions = {} }) => {
                                 onClick={() => onSendRequest(user.userId)}
                                 disabled={isPending}
                                 className={`px-3 py-1 text-sm rounded-lg transition ${isPending
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-black text-white hover:bg-gray-800'
+                                    ? 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 cursor-not-allowed border border-gray-200 dark:border-slate-700'
+                                    : 'bg-gray-100 dark:bg-slate-100 text-gray-900 dark:text-slate-900 hover:bg-white dark:hover:bg-white font-medium shadow-sm transition-colors'
                                     }`}
                             >
                                 {isPending ? 'Sending...' : 'Add Friend'}

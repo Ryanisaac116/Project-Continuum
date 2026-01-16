@@ -1,0 +1,17 @@
+spring:
+  profiles:
+    group:
+      prod-verify: prod
+  application:
+    name: Continuum
+  datasource:
+    url: jdbc:mysql://localhost:3306/continuum
+    username: continuum_user
+    password: continuum
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+
+# Default profile (can be overridden by command line args or env vars)
+# spring.profiles.active=dev

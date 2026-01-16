@@ -1,51 +1,21 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
+import { RealTimeProvider } from './context/RealTimeContext';
+import * as ThemeContext from './context/ThemeContext';
 import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
+import HomePage from './pages/HomePage';
 import ProtectedRoute from './routes/ProtectedRoute';
-import { PageContainer } from './components/layout/PageContainer';
-import { Card, CardHeader } from './components/ui/Card';
-import { Badge } from './components/ui/Badge';
-import { Button } from './components/ui/Button';
 import { useAuth } from './auth/AuthContext';
 import ExchangesPage from './pages/ExchangesPage';
 import FriendsPage from './pages/FriendsPage';
 import ChatPage from './pages/ChatPage';
+import CallOverlay from './components/CallOverlay';
+import ToastContainer from './components/ToastContainer';
 import { useTabPresence } from './hooks/useTabPresence';
-
-/* ======================
-   Home Page
-   ====================== */
-const HomePage = () => {
-  const { user } = useAuth();
-
-  return (
-    <PageContainer>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <Badge status={user.presenceStatus}>{user.presenceStatus}</Badge>
-        </div>
-
-        <Card>
-          <CardHeader
-            title={`Welcome back, ${user.name}`}
-            description="Your daily summary"
-          />
-          <div className="text-sm text-gray-600">
-            <p>This is the placeholder dashboard using the new Design System.</p>
-            <div className="mt-4">
-              <Button variant="secondary" size="sm">
-                Action Placeholder
-              </Button>
-            </div>
-          </div>
-        </Card>
-      </div>
-    </PageContainer>
-  );
-};
+import LandingPage from './pages/LandingPage';
 
 /* ======================
    App with Tab Presence
@@ -56,74 +26,71 @@ function AppContent() {
 
   const { user } = useAuth();
 
-  // Connect WebSocket app-wide for session invalidation events
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token && user) {
-      // Import and connect chatSocket for session events
-      import('./ws/chatSocket').then(({ connectChatSocket }) => {
-        connectChatSocket(
-          token,
-          () => { }, // Empty message callback - just need session subscription
-          () => console.log('[App] WebSocket connected for session events'),
-          () => { }
-        );
-      });
-    }
-  }, [user]);
-
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
+    <>
+      {/* Global call overlay for incoming/outgoing/active calls */}
+      {user && <CallOverlay userId={user.id} />}
 
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <HomePage />
-          </ProtectedRoute>
-        }
-      />
+      {/* Global toast notifications */}
+      {user && <ToastContainer />}
 
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute>
-            <ProfilePage />
-          </ProtectedRoute>
-        }
-      />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
 
-      <Route
-        path="/exchanges/*"
-        element={
-          <ProtectedRoute>
-            <ExchangesPage />
-          </ProtectedRoute>
-        }
-      />
+        {/* Public Landing Page */}
+        <Route path="/" element={<LandingPage />} />
 
-      <Route
-        path="/friends"
-        element={
-          <ProtectedRoute>
-            <FriendsPage />
-          </ProtectedRoute>
-        }
-      />
+        {/* Protected routes - ProtectedRoute wraps with AppLayout */}
+        <Route
+          path="/app"
+          element={
+            <ProtectedRoute>
+              <HomePage />
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/chat/:friendId"
-        element={
-          <ProtectedRoute>
-            <ChatPage />
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
 
-      {/* Catch-all MUST be last */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route
+          path="/exchanges/*"
+          element={
+            <ProtectedRoute>
+              <ExchangesPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/friends"
+          element={
+            <ProtectedRoute>
+              <FriendsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ChatPage has its own full-screen layout, skip AppLayout */}
+        <Route
+          path="/chat/:friendId"
+          element={
+            <ProtectedRoute noLayout>
+              <ChatPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Catch-all MUST be last */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
 
@@ -131,7 +98,13 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppContent />
+        <ThemeContext.ThemeProvider>
+          <NotificationProvider>
+            <RealTimeProvider>
+              <AppContent />
+            </RealTimeProvider>
+          </NotificationProvider>
+        </ThemeContext.ThemeProvider>
       </AuthProvider>
     </BrowserRouter>
   );

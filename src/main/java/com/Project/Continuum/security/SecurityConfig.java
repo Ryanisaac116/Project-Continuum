@@ -2,6 +2,7 @@ package com.Project.Continuum.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -11,7 +12,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 // - Stateless JWT auth
 // - Identity = userId only
 // - No roles/permissions here
-// - Google login must NOT affect this file
+// - Google login must NOT affect this file (except permitted endpoints)
 
 @Configuration
 public class SecurityConfig {
@@ -23,8 +24,19 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    @Profile("dev")
+    public SecurityFilterChain devSecurityFilterChain(HttpSecurity http) throws Exception {
+        return configureChain(http, "/api/auth/dev/**");
+    }
 
+    @Bean
+    @Profile("prod")
+    public SecurityFilterChain prodSecurityFilterChain(HttpSecurity http) throws Exception {
+        return configureChain(http, "/api/auth/google");
+    }
+
+    // Shared configuration
+    private SecurityFilterChain configureChain(HttpSecurity http, String permittedAuthEndpoint) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .formLogin(form -> form.disable())
@@ -33,8 +45,7 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/auth/**",
-                                "/dev/auth/**",
+                                permittedAuthEndpoint, // Profile specific
                                 "/ping",
                                 "/ws/**")
                         .permitAll()

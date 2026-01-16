@@ -1,90 +1,72 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import presenceApi from '../api/presence';
 
 /**
  * useTabPresence - Tab-aware presence hook
- * 
- * Behavior:
- * - ONLINE when Continuum tab is visible
- * - OFFLINE when tab hidden or app backgrounded
- * - Works on both desktop and mobile browsers
+ * Calls /presence API only when visibility changes
  */
 export function useTabPresence() {
-    const { user } = useAuth();
+    const { user, updateUserPresence } = useAuth();
     const lastStatusRef = useRef(null);
     const pendingRef = useRef(false);
-
-    const updatePresence = useCallback(async (isActive) => {
-        const newStatus = isActive ? 'ONLINE' : 'OFFLINE';
-
-        // Skip if same status already sent
-        if (lastStatusRef.current === newStatus) return;
-
-        // Skip if request in flight
-        if (pendingRef.current) return;
-
-        pendingRef.current = true;
-        lastStatusRef.current = newStatus;
-
-        try {
-            if (isActive) {
-                await presenceApi.markOnline();
-                console.log('[Presence] Marked ONLINE');
-            } else {
-                await presenceApi.markOffline();
-                console.log('[Presence] Marked OFFLINE');
-            }
-        } catch (err) {
-            console.error('[Presence] Update failed:', err);
-            // Reset to allow retry
-            lastStatusRef.current = null;
-        } finally {
-            pendingRef.current = false;
-        }
-    }, []);
+    const mountedRef = useRef(false);
 
     useEffect(() => {
-        if (!user) return;
+        if (!user?.id) return;
 
-        const handleVisibilityChange = () => {
-            const isVisible = document.visibilityState === 'visible';
-            console.log('[Presence] Visibility changed:', isVisible);
-            updatePresence(isVisible);
+        // Prevent multiple mounts
+        if (mountedRef.current) return;
+        mountedRef.current = true;
+
+        const updatePresence = async (isActive) => {
+            const newStatus = isActive ? 'ONLINE' : 'OFFLINE';
+
+            // Skip if same status or request pending
+            if (lastStatusRef.current === newStatus || pendingRef.current) return;
+
+            console.log('[useTabPresence] Updating presence to:', newStatus);
+            pendingRef.current = true;
+            lastStatusRef.current = newStatus;
+
+            try {
+                if (isActive) {
+                    await presenceApi.markOnline();
+                } else {
+                    await presenceApi.markOffline();
+                }
+                console.log('[useTabPresence] API success, updating local user state...');
+                updateUserPresence?.(newStatus);
+            } catch (err) {
+                console.error('[Presence] Failed:', err);
+                lastStatusRef.current = null;
+            } finally {
+                pendingRef.current = false;
+            }
         };
 
-        // For mobile: pageshow/pagehide are more reliable
-        const handlePageShow = () => {
-            console.log('[Presence] Page shown (mobile)');
-            updatePresence(true);
+        const handleVisibility = () => {
+            updatePresence(document.visibilityState === 'visible');
         };
 
-        const handlePageHide = () => {
-            console.log('[Presence] Page hidden (mobile)');
-            updatePresence(false);
-        };
+        // Initial presence
+        updatePresence(document.visibilityState === 'visible');
 
-        // Force initial update - just check if page is visible
-        // Don't use document.hasFocus() as it's unreliable on mobile
-        lastStatusRef.current = null;
-        const isVisible = document.visibilityState === 'visible';
-        console.log('[Presence] Initial visibility:', isVisible);
-        updatePresence(isVisible);
+        // Heartbeat: Ping server every 30s to stay ONLINE while visible
+        const heartbeatInterval = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                presenceApi.heartbeat().catch(() => { });
+            }
+        }, 30000);
 
-        // Desktop: visibilitychange
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        // Mobile: pageshow/pagehide (more reliable on iOS/Android)
-        window.addEventListener('pageshow', handlePageShow);
-        window.addEventListener('pagehide', handlePageHide);
+        document.addEventListener('visibilitychange', handleVisibility);
 
         return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('pageshow', handlePageShow);
-            window.removeEventListener('pagehide', handlePageHide);
+            clearInterval(heartbeatInterval);
+            document.removeEventListener('visibilitychange', handleVisibility);
+            mountedRef.current = false;
         };
-    }, [user, updatePresence]);
+    }, [user?.id, updateUserPresence]); // Only run when user ID changes
 }
 
 export default useTabPresence;
-

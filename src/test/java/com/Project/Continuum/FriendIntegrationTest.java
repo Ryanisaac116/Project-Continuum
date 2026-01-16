@@ -1,5 +1,7 @@
 package com.Project.Continuum;
 
+import com.Project.Continuum.enums.AuthProvider;
+
 import com.Project.Continuum.entity.*;
 import com.Project.Continuum.enums.*;
 import com.Project.Continuum.repository.*;
@@ -154,7 +156,7 @@ public class FriendIntegrationTest {
     private User createUser(String name, String providerId) {
         User u = new User();
         u.setName(name);
-        u.setAuthProvider("GOOGLE");
+        u.setAuthProvider(AuthProvider.GOOGLE);
         u.setProviderUserId(providerId);
         u.setActive(true);
         return userRepository.save(u);

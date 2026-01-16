@@ -6,5 +6,7 @@ public enum CallSignalType {
     ICE_CANDIDATE,
     END_CALL,
     REJECT,
-    HEARTBEAT
+    HEARTBEAT,
+    SCREEN_SHARE_START,
+    SCREEN_SHARE_STOP
 }

@@ -1,36 +1,31 @@
 package com.Project.Continuum.controller;
 
-import com.Project.Continuum.dto.auth.LoginResponse;
-import com.Project.Continuum.exception.ResourceNotFoundException;
-import com.Project.Continuum.repository.UserRepository;
-import com.Project.Continuum.security.JwtUtil;
+import com.Project.Continuum.service.DevAuthService;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-
-// DEV AUTH ONLY
-// DELETE THIS CONTROLLER WHEN GOOGLE LOGIN IS IMPLEMENTED
+import java.util.Map;
 
 @RestController
-@RequestMapping("/dev/auth")
+@RequestMapping("/api/auth/dev")
 @Profile("dev")
 public class DevAuthController {
 
-    private final UserRepository userRepository;
-    private final JwtUtil jwtUtil;
+    private final DevAuthService devAuthService;
 
-    public DevAuthController(UserRepository userRepository, JwtUtil jwtUtil) {
-        this.userRepository = userRepository;
-        this.jwtUtil = jwtUtil;
+    public DevAuthController(DevAuthService devAuthService) {
+        this.devAuthService = devAuthService;
     }
 
-    @PostMapping("/login/{userId}")
-    public LoginResponse login(@PathVariable Long userId) {
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody Map<String, Long> request) {
+        Long userId = request.get("userId");
+        if (userId == null) {
+            return ResponseEntity.badRequest().body("userId is required");
+        }
 
-        userRepository.findById(userId)
-                .orElseThrow(() ->  new ResourceNotFoundException("User not found"));
-
-        String token = jwtUtil.generateToken(userId);
-        return new LoginResponse(userId, token);
+        String token = devAuthService.login(userId);
+        return ResponseEntity.ok(Map.of("token", token));
     }
 }

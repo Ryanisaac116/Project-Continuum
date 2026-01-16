@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow-y: auto;
+}
+
 /* Mobile-First Global Styles */
 :root {
   /* Safe area insets for notched devices */
@@ -19,7 +28,7 @@ html {
 }
 
 body {
-  @apply bg-gray-50 text-gray-900;
+  @apply bg-gray-50 text-gray-900 dark:bg-black dark:text-gray-100 selection:bg-blue-500/30 selection:text-black dark:selection:text-white;
   /* Improve touch scrolling */
   -webkit-overflow-scrolling: touch;
   /* Prevent pull-to-refresh on mobile */
@@ -66,6 +75,23 @@ select {
 
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Toast slide-in animation */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out forwards;
 }
 
 /* Mobile-optimized scrollbar */

@@ -1,0 +1,178 @@
+package com.Project.Continuum.service;
+
+import com.Project.Continuum.entity.PushSubscription;
+import com.Project.Continuum.repository.PushSubscriptionRepository;
+import nl.martijndwars.webpush.Notification;
+import nl.martijndwars.webpush.PushService;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import jakarta.annotation.PostConstruct;
+import java.security.Security;
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * ProdPushNotificationService - Real implementation for PROD.
+ * 
+ * Uses the webpush-java library for encryption and delivery.
+ * Requires VAPID keys to be present.
+ */
+@Service
+@Profile("prod")
+public class ProdPushNotificationService implements PushNotificationService {
+
+    private static final Logger log = LoggerFactory.getLogger(ProdPushNotificationService.class);
+
+    private final PushSubscriptionRepository subscriptionRepository;
+
+    @Value("${push.vapid.public-key}")
+    private String vapidPublicKey;
+
+    @Value("${push.vapid.private-key}")
+    private String vapidPrivateKey;
+
+    @Value("${push.vapid.subject}")
+    private String vapidSubject;
+
+    private PushService pushService;
+
+    public ProdPushNotificationService(PushSubscriptionRepository subscriptionRepository) {
+        this.subscriptionRepository = subscriptionRepository;
+    }
+
+    @PostConstruct
+    public void init() {
+        try {
+            // Add BouncyCastle provider for encryption
+            if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+                Security.addProvider(new BouncyCastleProvider());
+            }
+
+            pushService = new PushService();
+            pushService.setPublicKey(vapidPublicKey);
+            pushService.setPrivateKey(vapidPrivateKey);
+            pushService.setSubject(vapidSubject);
+
+            log.info("ProdPushNotificationService initialized with VAPID");
+        } catch (Exception e) {
+            log.error("Failed to initialize ProdPushNotificationService: {}", e.getMessage());
+            // In PROD, we might want to throw here to fail fast, but logging error
+            // preserves existing behavior (partially).
+            // However, Spring @Value injection failure happens BEFORE this init if keys are
+            // missing.
+        }
+    }
+
+    @Override
+    @Transactional
+    public PushSubscription saveSubscription(Long userId, String endpoint, String p256dh, String auth) {
+        PushSubscription existing = subscriptionRepository.findByEndpoint(endpoint).orElse(null);
+
+        if (existing != null) {
+            existing.setUserId(userId);
+            existing.setP256dh(p256dh);
+            existing.setAuth(auth);
+            return subscriptionRepository.save(existing);
+        }
+
+        PushSubscription subscription = new PushSubscription();
+        subscription.setUserId(userId);
+        subscription.setEndpoint(endpoint);
+        subscription.setP256dh(p256dh);
+        subscription.setAuth(auth);
+
+        return subscriptionRepository.save(subscription);
+    }
+
+    @Override
+    @Transactional
+    public void removeSubscription(String endpoint) {
+        subscriptionRepository.deleteByEndpoint(endpoint);
+    }
+
+    @Override
+    public boolean hasSubscription(Long userId) {
+        return subscriptionRepository.existsByUserId(userId);
+    }
+
+    @Override
+    public String getPublicKey() {
+        return vapidPublicKey;
+    }
+
+    @Override
+    public void sendToUser(Long userId, String title, String body, String data) {
+        List<PushSubscription> subscriptions = subscriptionRepository.findByUserId(userId);
+
+        if (subscriptions.isEmpty()) {
+            log.debug("No push subscriptions for user {}", userId);
+            return;
+        }
+
+        String payload = buildPayload(title, body, data);
+
+        for (PushSubscription sub : subscriptions) {
+            sendPush(sub, payload);
+        }
+    }
+
+    private void sendPush(PushSubscription sub, String payload) {
+        if (pushService == null) {
+            log.warn("PushService not initialized");
+            return;
+        }
+
+        try {
+            Notification notification = new Notification(
+                    sub.getEndpoint(),
+                    sub.getP256dh(),
+                    sub.getAuth(),
+                    payload.getBytes());
+
+            pushService.send(notification);
+
+            sub.setLastUsedAt(LocalDateTime.now());
+            subscriptionRepository.save(sub);
+
+            log.debug("Push sent to user {} endpoint {}", sub.getUserId(),
+                    sub.getEndpoint().substring(0, Math.min(50, sub.getEndpoint().length())));
+
+        } catch (Exception e) {
+            log.warn("Push failed for endpoint {}: {}",
+                    sub.getEndpoint().substring(0, Math.min(50, sub.getEndpoint().length())),
+                    e.getMessage());
+
+            if (e.getMessage() != null && e.getMessage().contains("410")) {
+                log.info("Removing expired subscription for user {}", sub.getUserId());
+                subscriptionRepository.delete(sub);
+            }
+        }
+    }
+
+    private String buildPayload(String title, String body, String data) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+        sb.append("\"title\":\"").append(escapeJson(title)).append("\",");
+        sb.append("\"body\":\"").append(escapeJson(body)).append("\"");
+        if (data != null && !data.isEmpty()) {
+            sb.append(",\"data\":").append(data);
+        }
+        sb.append("}");
+        return sb.toString();
+    }
+
+    private String escapeJson(String s) {
+        if (s == null)
+            return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r");
+    }
+}
