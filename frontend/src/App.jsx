@@ -16,6 +16,7 @@ import CallOverlay from './components/CallOverlay';
 import ToastContainer from './components/ToastContainer';
 import { useTabPresence } from './hooks/useTabPresence';
 import LandingPage from './pages/LandingPage';
+import OAuthSuccess from './pages/OAuthSuccess';
 
 /* ======================
    App with Tab Presence
@@ -36,6 +37,7 @@ function AppContent() {
 
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/oauth-success" element={<OAuthSuccess />} />
 
         {/* Public Landing Page */}
         <Route path="/" element={<LandingPage />} />

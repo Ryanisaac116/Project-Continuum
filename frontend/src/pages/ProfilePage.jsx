@@ -39,6 +39,7 @@ const ProfilePage = () => {
 
       setProfile({
         name: user.name,
+        profileImageUrl: user.profileImageUrl,
         presenceStatus: user.presenceStatus,
         ...data
       });
@@ -106,8 +107,16 @@ const ProfilePage = () => {
         <div className="md:col-span-4 space-y-6">
           {/* USER CARD */}
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6 shadow-sm text-center transition-colors">
-            <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-slate-800 text-blue-600 dark:text-blue-500 flex items-center justify-center text-3xl font-bold transition-colors">
-              {profile.name?.charAt(0).toUpperCase() || 'U'}
+            <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-slate-800 text-blue-600 dark:text-blue-500 flex items-center justify-center text-3xl font-bold transition-colors overflow-hidden">
+              {profile.profileImageUrl ? (
+                <img
+                  src={profile.profileImageUrl}
+                  alt={profile.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                profile.name?.charAt(0).toUpperCase() || 'U'
+              )}
             </div>
 
             {!isEditing ? (

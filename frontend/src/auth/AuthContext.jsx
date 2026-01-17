@@ -75,6 +75,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // 🌐 OAUTH LOGIN (Token based)
+  const handleOAuthLogin = async (token) => {
+    try {
+      // 1. Store token
+      localStorage.setItem('token', token);
+
+      // 2. Fetch User Profile using new token
+      const userRes = await apiClient.get('/users/me', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // 3. Set User
+      const userData = { ...userRes.data, presenceStatus: 'ONLINE' };
+      setUser(userData);
+      localStorage.setItem('userId', userData.id);
+
+      return userData;
+    } catch (err) {
+      console.error('OAuth Login processing failed:', err);
+      clearAuthState();
+      throw err;
+    }
+  };
+
   const logout = async () => {
     try {
       if (user?.id) {
@@ -91,7 +115,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, updateUserPresence }}>
+    <AuthContext.Provider value={{ user, loading, login, handleOAuthLogin, logout, updateUserPresence }}>
       {children}
     </AuthContext.Provider>
   );
