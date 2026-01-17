@@ -60,6 +60,7 @@ public class UserService {
                 user.getId(),
                 user.getName(),
                 user.getBio(),
+                user.getProfileImageUrl(),
                 user.getPresenceStatus());
     }
 }

@@ -41,6 +41,9 @@ public class User {
     @Column(name = "last_seen_at")
     private Instant lastSeenAt;
 
+    @Column(name = "profile_image_url", length = 2048)
+    private String profileImageUrl;
+
     @Column(name = "session_token")
     private String sessionToken;
 
@@ -104,6 +107,14 @@ public class User {
 
     public void setLastSeenAt(Instant lastSeenAt) {
         this.lastSeenAt = lastSeenAt;
+    }
+
+    public String getProfileImageUrl() {
+        return profileImageUrl;
+    }
+
+    public void setProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
     }
 
     public void setAuthProvider(AuthProvider authProvider) {

@@ -32,7 +32,7 @@ public class SecurityConfig {
     @Bean
     @Profile("prod")
     public SecurityFilterChain prodSecurityFilterChain(HttpSecurity http) throws Exception {
-        return configureChain(http, "/api/auth/google");
+        return configureChain(http, "/api/auth/google/**");
     }
 
     // Shared configuration

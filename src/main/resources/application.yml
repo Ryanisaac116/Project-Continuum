@@ -4,6 +4,7 @@ spring:
       prod-verify: prod
   application:
     name: Continuum
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
   datasource:
     url: jdbc:mysql://localhost:3306/continuum?serverTimezone=UTC&useLegacyDatetimeCode=false
     username: continuum_user

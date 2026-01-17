@@ -31,13 +31,13 @@ public class ProdPushNotificationService implements PushNotificationService {
 
     private final PushSubscriptionRepository subscriptionRepository;
 
-    @Value("${push.vapid.public-key}")
+    @Value("${push.vapid.public-key:#{null}}")
     private String vapidPublicKey;
 
-    @Value("${push.vapid.private-key}")
+    @Value("${push.vapid.private-key:#{null}}")
     private String vapidPrivateKey;
 
-    @Value("${push.vapid.subject}")
+    @Value("${push.vapid.subject:#{null}}")
     private String vapidSubject;
 
     private PushService pushService;
@@ -48,6 +48,11 @@ public class ProdPushNotificationService implements PushNotificationService {
 
     @PostConstruct
     public void init() {
+        if (vapidPublicKey == null || vapidPrivateKey == null || vapidSubject == null) {
+            log.warn("VAPID keys missing. Push notification service will be DISABLED.");
+            return;
+        }
+
         try {
             // Add BouncyCastle provider for encryption
             if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
