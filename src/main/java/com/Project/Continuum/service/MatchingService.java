@@ -69,7 +69,12 @@ public class MatchingService {
         }
 
         if (teachSkill.getSkill().getId().equals(learnSkill.getSkill().getId())) {
-            throw new IllegalArgumentException("Teach and Learn skills cannot be the same.");
+            // Same-skill exchanges are allowed ONLY for language-based skills
+            // to support peer-to-peer conversation practice.
+            // All other categories require complementary skills.
+            if (!teachSkill.getSkill().getCategory().equalsIgnoreCase("Languages")) {
+                throw new IllegalArgumentException("Teach and Learn skills cannot be the same.");
+            }
         }
 
         List<MatchCandidate> candidates = new ArrayList<>();
@@ -120,7 +125,13 @@ public class MatchingService {
                     request.getTeachSkillId(),
                     SkillType.LEARN);
 
-            if (!partnerWantsToLearnMySkill) {
+            boolean isLanguageConversation = teachSkill.getSkill().getId().equals(learnSkill.getSkill().getId())
+                    && teachSkill.getSkill().getCategory().equalsIgnoreCase("Languages");
+
+            // For language conversation, strictly requiring the partner to "learn" the
+            // language is optional
+            // as long as they teach it (which is guaranteed by the candidate query).
+            if (!partnerWantsToLearnMySkill && !isLanguageConversation) {
                 continue;
             }
 
