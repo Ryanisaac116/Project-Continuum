@@ -19,7 +19,9 @@ push:
     private-key: UUxI4O8-FbRouADVXc-hK-l-dR0OYDy3fOY7EHmWnqs
     subject: mailto:dev@continuum.local
 
-jpa:
-    show-sql: true
     hibernate:
       ddl-auto: update
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+

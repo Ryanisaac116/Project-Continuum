@@ -1,0 +1,3 @@
+ALTER TABLE chat_messages
+ADD COLUMN delivered_at DATETIME(6) NULL,
+ADD COLUMN seen_at DATETIME(6) NULL;

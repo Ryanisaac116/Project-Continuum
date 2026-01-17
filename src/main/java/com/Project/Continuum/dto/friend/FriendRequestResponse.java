@@ -1,7 +1,7 @@
 package com.Project.Continuum.dto.friend;
 
 import com.Project.Continuum.enums.PresenceStatus;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * DTO for pending incoming friend requests
@@ -10,10 +10,10 @@ public class FriendRequestResponse {
     private Long requesterId;
     private String requesterName;
     private PresenceStatus presence;
-    private LocalDateTime requestedAt;
+    private Instant requestedAt;
 
     public FriendRequestResponse(Long requesterId, String requesterName, PresenceStatus presence,
-            LocalDateTime requestedAt) {
+            Instant requestedAt) {
         this.requesterId = requesterId;
         this.requesterName = requesterName;
         this.presence = presence;
@@ -32,7 +32,7 @@ public class FriendRequestResponse {
         return presence;
     }
 
-    public LocalDateTime getRequestedAt() {
+    public Instant getRequestedAt() {
         return requestedAt;
     }
 }

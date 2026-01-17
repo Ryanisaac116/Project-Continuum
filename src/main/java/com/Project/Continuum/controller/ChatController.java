@@ -49,6 +49,15 @@ public class ChatController {
         return ResponseEntity.ok(chatService.deleteMessage(userId, messageId, mode));
     }
 
+    // REST: Mark Messages as Seen
+    @PostMapping("/api/chat/messages/seen")
+    public ResponseEntity<Void> markMessagesAsSeen(@RequestBody Map<String, List<Long>> body) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        List<Long> messageIds = body.get("messageIds");
+        chatService.markMessagesAsSeen(userId, messageIds);
+        return ResponseEntity.ok().build();
+    }
+
     // WebSocket: Send Message
     // Client sends to: /app/chat
     @MessageMapping("/chat")

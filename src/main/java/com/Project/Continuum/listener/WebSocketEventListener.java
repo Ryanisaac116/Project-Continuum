@@ -13,7 +13,6 @@ import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.security.Principal;
-import java.time.LocalDateTime;
 
 /**
  * WebSocketEventListener - Handles WebSocket connect/disconnect events.
@@ -30,16 +29,19 @@ public class WebSocketEventListener {
     private final PresenceStore presenceStore;
     private final SimpMessageSendingOperations messagingTemplate;
     private final com.Project.Continuum.service.CallService callService;
+    private final com.Project.Continuum.service.ChatService chatService;
 
     public WebSocketEventListener(
             PresenceService presenceService,
             PresenceStore presenceStore,
             SimpMessageSendingOperations messagingTemplate,
-            com.Project.Continuum.service.CallService callService) {
+            com.Project.Continuum.service.CallService callService,
+            com.Project.Continuum.service.ChatService chatService) {
         this.presenceService = presenceService;
         this.presenceStore = presenceStore;
         this.messagingTemplate = messagingTemplate;
         this.callService = callService;
+        this.chatService = chatService;
     }
 
     @EventListener
@@ -59,12 +61,37 @@ public class WebSocketEventListener {
             // Always update presence to ONLINE on connect
             presenceService.updatePresence(userId, PresenceStatus.ONLINE);
 
-            // Notify CallService of reconnection (cancels any disconnect timers)
+            // Notify CallService of reconnection
             callService.onUserConnect(userId);
 
             logger.info("🟢 User {} connected (total connections: {})", userId, connections);
         } catch (NumberFormatException e) {
             logger.warn("Invalid user ID format: {}", principal.getName());
+        }
+    }
+
+    @EventListener
+    public void handleWebSocketSubscribeListener(org.springframework.web.socket.messaging.SessionSubscribeEvent event) {
+        Principal principal = event.getUser();
+        if (principal == null || principal.getName() == null) {
+            return;
+        }
+
+        org.springframework.messaging.simp.stomp.StompHeaderAccessor headerAccessor = org.springframework.messaging.simp.stomp.StompHeaderAccessor
+                .wrap(event.getMessage());
+
+        String destination = headerAccessor.getDestination();
+
+        // Check if subscribing to personal messages queue
+        if ("/user/queue/messages".equals(destination)) {
+            try {
+                Long userId = Long.valueOf(principal.getName());
+                // Mark pending messages as DELIVERED now that user is listening
+                chatService.markPendingMessagesAsDelivered(userId);
+                logger.info("📬 User {} subscribed to messages - flushing pending deliveries", userId);
+            } catch (NumberFormatException e) {
+                logger.warn("Invalid user ID format in subscribe event: {}", principal.getName());
+            }
         }
     }
 
@@ -96,7 +123,7 @@ public class WebSocketEventListener {
 
                 // Broadcast current status to ensure UI is updated
                 PresenceResponse response = new PresenceResponse(
-                        userId, presenceStore.getStatus(userId), LocalDateTime.now());
+                        userId, presenceStore.getStatus(userId), java.time.Instant.now());
                 messagingTemplate.convertAndSend("/topic/presence/" + userId, response);
             }
         } catch (NumberFormatException e) {

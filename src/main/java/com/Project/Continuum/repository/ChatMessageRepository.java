@@ -11,4 +11,6 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
             Long senderId1, Long recipientId1,
             Long senderId2, Long recipientId2);
 
+    List<ChatMessage> findByRecipient_IdAndDeliveredAtIsNull(Long recipientId);
+
 }

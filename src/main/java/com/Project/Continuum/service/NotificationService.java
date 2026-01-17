@@ -13,7 +13,8 @@ import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,6 +32,7 @@ public class NotificationService {
     private final PresenceStore presenceStore;
     private final SimpMessageSendingOperations messagingTemplate;
     private final PushNotificationService pushService;
+    private final Clock clock;
 
     // Notification types that should trigger push when user is offline
     private static final List<NotificationType> PUSH_ENABLED_TYPES = List.of(
@@ -44,11 +46,13 @@ public class NotificationService {
             NotificationRepository notificationRepository,
             PresenceStore presenceStore,
             SimpMessageSendingOperations messagingTemplate,
-            PushNotificationService pushService) {
+            PushNotificationService pushService,
+            Clock clock) {
         this.notificationRepository = notificationRepository;
         this.presenceStore = presenceStore;
         this.messagingTemplate = messagingTemplate;
         this.pushService = pushService;
+        this.clock = clock;
     }
 
     /**
@@ -77,7 +81,7 @@ public class NotificationService {
         notification.setMessage(message);
         notification.setPayload(payload);
         notification.setRead(false);
-        notification.setCreatedAt(LocalDateTime.now());
+        notification.setCreatedAt(Instant.now(clock));
 
         notificationRepository.save(notification);
 
@@ -171,5 +175,31 @@ public class NotificationService {
                 String.valueOf(userId),
                 "/queue/notifications",
                 java.util.Map.of("type", "NOTIFICATIONS_CLEARED"));
+    }
+
+    /**
+     * Mark all chat notifications from a specific sender as read.
+     */
+    @Transactional
+    public void markChatNotificationsAsRead(Long userId, Long senderId) {
+        String payloadPattern = "\"senderId\":" + senderId;
+        List<Notification> unread = notificationRepository.findUnreadChatNotificationsBySender(userId, payloadPattern);
+
+        if (unread.isEmpty()) {
+            return;
+        }
+
+        for (Notification n : unread) {
+            n.setRead(true);
+
+            // Broadcast READ event
+            messagingTemplate.convertAndSendToUser(
+                    String.valueOf(userId),
+                    "/queue/notifications",
+                    java.util.Map.of(
+                            "type", "NOTIFICATION_READ",
+                            "id", n.getId()));
+        }
+        notificationRepository.saveAll(unread);
     }
 }

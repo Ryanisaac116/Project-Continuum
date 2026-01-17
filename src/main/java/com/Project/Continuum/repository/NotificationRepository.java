@@ -36,4 +36,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     Optional<Notification> findByIdAndUserId(Long id, Long userId);
 
     void deleteAllByUserId(Long userId);
+
+    @Query("SELECT n FROM Notification n WHERE n.userId = :userId AND n.isRead = false AND n.type = 'CHAT_MESSAGE' AND n.payload LIKE %:payloadPattern%")
+    List<Notification> findUnreadChatNotificationsBySender(@Param("userId") Long userId,
+            @Param("payloadPattern") String payloadPattern);
 }

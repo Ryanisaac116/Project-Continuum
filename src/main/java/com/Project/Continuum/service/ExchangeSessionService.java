@@ -7,8 +7,8 @@ import com.Project.Continuum.entity.SkillExchangeRequest;
 import com.Project.Continuum.entity.User;
 import com.Project.Continuum.enums.ExchangeIntent;
 import com.Project.Continuum.enums.ExchangeStatus;
-import com.Project.Continuum.enums.NotificationType; // ✅ NEW
-import com.Project.Continuum.enums.PresenceStatus; // ✅ NEW
+import com.Project.Continuum.enums.NotificationType;
+import com.Project.Continuum.enums.PresenceStatus;
 import com.Project.Continuum.exception.AccessDeniedException;
 import com.Project.Continuum.exception.BadRequestException;
 import com.Project.Continuum.exception.ResourceNotFoundException;
@@ -20,7 +20,8 @@ import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -28,395 +29,391 @@ import java.util.Map;
 @Transactional
 public class ExchangeSessionService {
 
-    private final ExchangeSessionRepository exchangeSessionRepository;
-    private final SkillExchangeRequestRepository requestRepository;
-    private final PresenceService presenceService;
-    private final CallService callService;
-    private final UserRepository userRepository;
-    private final SimpMessageSendingOperations messagingTemplate;
-    private final NotificationService notificationService;
+        private final ExchangeSessionRepository exchangeSessionRepository;
+        private final SkillExchangeRequestRepository requestRepository;
+        private final PresenceService presenceService;
+        private final CallService callService;
+        private final UserRepository userRepository;
+        private final SimpMessageSendingOperations messagingTemplate;
+        private final NotificationService notificationService;
+        private final Clock clock;
 
-    public ExchangeSessionService(
-            ExchangeSessionRepository exchangeSessionRepository,
-            SkillExchangeRequestRepository requestRepository,
-            PresenceService presenceService,
-            CallService callService,
-            UserRepository userRepository,
-            SimpMessageSendingOperations messagingTemplate,
-            NotificationService notificationService) {
-        this.exchangeSessionRepository = exchangeSessionRepository;
-        this.requestRepository = requestRepository;
-        this.presenceService = presenceService;
-        this.callService = callService;
-        this.userRepository = userRepository;
-        this.messagingTemplate = messagingTemplate;
-        this.notificationService = notificationService;
-    }
-
-    /* ================= GET SESSION DETAILS ================= */
-
-    @Transactional(readOnly = true)
-    public ExchangeSessionDetailsResponse getSessionDetails(Long sessionId, Long currentUserId) {
-        ExchangeSession session = getSessionOrThrow(sessionId);
-
-        if (!session.isParticipant(currentUserId)) {
-            throw new AccessDeniedException("You are not part of this session");
+        public ExchangeSessionService(
+                        ExchangeSessionRepository exchangeSessionRepository,
+                        SkillExchangeRequestRepository requestRepository,
+                        PresenceService presenceService,
+                        CallService callService,
+                        UserRepository userRepository,
+                        SimpMessageSendingOperations messagingTemplate,
+                        NotificationService notificationService,
+                        Clock clock) {
+                this.exchangeSessionRepository = exchangeSessionRepository;
+                this.requestRepository = requestRepository;
+                this.presenceService = presenceService;
+                this.callService = callService;
+                this.userRepository = userRepository;
+                this.messagingTemplate = messagingTemplate;
+                this.notificationService = notificationService;
+                this.clock = clock;
         }
 
-        return new ExchangeSessionDetailsResponse(
-                session.getId(),
-                session.getIntent(),
-                session.getStatus(),
-                session.getStartedAt(),
-                session.getEndedAt(),
-                session.getUserA().getId(),
-                session.getUserA().getName(),
-                session.getUserB().getId(),
-                session.getUserB().getName());
-    }
+        /* ================= GET SESSION DETAILS ================= */
 
-    /* ================= START SESSION ================= */
+        @Transactional(readOnly = true)
+        public ExchangeSessionDetailsResponse getSessionDetails(Long sessionId, Long currentUserId) {
+                ExchangeSession session = getSessionOrThrow(sessionId);
 
-    public ExchangeSessionResponse startSession(
-            Long requestId,
-            Long currentUserId,
-            ExchangeIntent intent) {
+                if (!session.isParticipant(currentUserId)) {
+                        throw new AccessDeniedException("You are not part of this session");
+                }
 
-        SkillExchangeRequest request = requestRepository.findById(requestId)
-                .orElseThrow(() -> new ResourceNotFoundException("Exchange request not found"));
-
-        // Only sender or receiver can start session
-        if (!request.getSender().getId().equals(currentUserId)
-                && !request.getReceiver().getId().equals(currentUserId)) {
-            throw new AccessDeniedException("You are not part of this exchange request");
+                return new ExchangeSessionDetailsResponse(
+                                session.getId(),
+                                session.getIntent(),
+                                session.getStatus(),
+                                session.getStartedAt(),
+                                session.getEndedAt(),
+                                session.getUserA().getId(),
+                                session.getUserA().getName(),
+                                session.getUserB().getId(),
+                                session.getUserB().getName());
         }
 
-        if (request.getStatus() != com.Project.Continuum.enums.ExchangeRequestStatus.ACCEPTED) {
-            throw new BadRequestException("Session can only be started for ACCEPTED requests");
+        /* ================= START SESSION ================= */
+
+        public ExchangeSessionResponse startSession(
+                        Long requestId,
+                        Long currentUserId,
+                        ExchangeIntent intent) {
+
+                SkillExchangeRequest request = requestRepository.findById(requestId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Exchange request not found"));
+
+                // Only sender or receiver can start session
+                if (!request.getSender().getId().equals(currentUserId)
+                                && !request.getReceiver().getId().equals(currentUserId)) {
+                        throw new AccessDeniedException("You are not part of this exchange request");
+                }
+
+                if (request.getStatus() != com.Project.Continuum.enums.ExchangeRequestStatus.ACCEPTED) {
+                        throw new BadRequestException("Session can only be started for ACCEPTED requests");
+                }
+
+                User a = request.getSender();
+                User b = request.getReceiver();
+
+                // Normalize ordering
+                User userA = a.getId() < b.getId() ? a : b;
+                User userB = a.getId() < b.getId() ? b : a;
+
+                // Prevent duplicate sessions
+                exchangeSessionRepository
+                                .findByUserA_IdAndUserB_IdAndStatusIn(
+                                                userA.getId(),
+                                                userB.getId(),
+                                                List.of(
+                                                                ExchangeStatus.REQUESTED,
+                                                                ExchangeStatus.ACCEPTED,
+                                                                ExchangeStatus.ACTIVE))
+                                .ifPresent(s -> {
+                                        throw new BadRequestException("Session already exists between these users");
+                                });
+
+                ExchangeSession session = new ExchangeSession();
+                session.setRequest(request);
+                session.setUserA(userA);
+                session.setUserB(userB);
+                session.setIntent(intent);
+                session.setStatus(ExchangeStatus.REQUESTED);
+
+                ExchangeSession savedSession = exchangeSessionRepository.save(session);
+                ExchangeSessionResponse response = mapToResponse(savedSession);
+
+                // 🔥 Broadcast REQUESTED to receiver
+                messagingTemplate.convertAndSendToUser(
+                                savedSession.getUserB().getId().toString(),
+                                "/queue/session",
+                                Map.of(
+                                                "type", "SESSION_REQUESTED",
+                                                "sessionId", savedSession.getId(),
+                                                "requesterId", savedSession.getUserA().getId(),
+                                                "requesterName", savedSession.getUserA().getName()));
+
+                return response;
         }
 
-        User a = request.getSender();
-        User b = request.getReceiver();
+        /**
+         * Start session directly between two users (for matching flow)
+         * No exchange request required.
+         */
+        public ExchangeSession startSession(Long userAId, Long userBId) {
+                // Normalize ordering (smaller ID first)
+                Long minId = Math.min(userAId, userBId);
+                Long maxId = Math.max(userAId, userBId);
 
-        // Normalize ordering
-        User userA = a.getId() < b.getId() ? a : b;
-        User userB = a.getId() < b.getId() ? b : a;
+                // Prevent duplicate active sessions
+                // Check for existing active session (Idempotency)
+                var existingSession = exchangeSessionRepository
+                                .findByUserA_IdAndUserB_IdAndStatusIn(
+                                                minId,
+                                                maxId,
+                                                List.of(
+                                                                ExchangeStatus.REQUESTED,
+                                                                ExchangeStatus.ACCEPTED,
+                                                                ExchangeStatus.ACTIVE));
 
-        // Prevent duplicate sessions
-        exchangeSessionRepository
-                .findByUserA_IdAndUserB_IdAndStatusIn(
-                        userA.getId(),
-                        userB.getId(),
-                        List.of(
-                                ExchangeStatus.REQUESTED,
-                                ExchangeStatus.ACCEPTED,
-                                ExchangeStatus.ACTIVE))
-                .ifPresent(s -> {
-                    throw new BadRequestException("Session already exists between these users");
-                });
+                if (existingSession.isPresent()) {
+                        return existingSession.get();
+                }
 
-        ExchangeSession session = new ExchangeSession();
-        session.setRequest(request);
-        session.setUserA(userA);
-        session.setUserB(userB);
-        session.setIntent(intent);
-        session.setStatus(ExchangeStatus.REQUESTED);
+                // Fetch actual User entities
+                User userA = userRepository.findById(minId)
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + minId));
+                User userB = userRepository.findById(maxId)
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + maxId));
 
-        ExchangeSession savedSession = exchangeSessionRepository.save(session);
-        ExchangeSessionResponse response = mapToResponse(savedSession);
+                ExchangeSession session = new ExchangeSession();
+                session.setIntent(ExchangeIntent.AUDIO_CALL);
+                session.setStatus(ExchangeStatus.ACTIVE); // Start as ACTIVE for matching
+                session.setUserA(userA);
+                session.setUserB(userB);
 
-        // 🔥 Broadcast REQUESTED to receiver
-        messagingTemplate.convertAndSendToUser(
-                savedSession.getUserB().getId().toString(),
-                "/queue/session",
-                Map.of(
-                        "type", "SESSION_REQUESTED",
-                        "sessionId", savedSession.getId(),
-                        "requesterId", savedSession.getUserA().getId(),
-                        "requesterName", savedSession.getUserA().getName()));
+                // Update presence to IN_SESSION
+                presenceService.updatePresence(userAId, PresenceStatus.IN_SESSION);
+                presenceService.updatePresence(userBId, PresenceStatus.IN_SESSION);
 
-        return response;
-    }
+                ExchangeSession savedSession = exchangeSessionRepository.save(session);
 
-    /**
-     * Start session directly between two users (for matching flow)
-     * No exchange request required.
-     */
-    public ExchangeSession startSession(Long userAId, Long userBId) {
-        // Normalize ordering (smaller ID first)
-        Long minId = Math.min(userAId, userBId);
-        Long maxId = Math.max(userAId, userBId);
+                // MatchFound handles the notification for this usually, but let's be consistent
+                // No broadbast here to avoid double notification with MATCH_FOUND
 
-        // Prevent duplicate active sessions
-        // Check for existing active session (Idempotency)
-        var existingSession = exchangeSessionRepository
-                .findByUserA_IdAndUserB_IdAndStatusIn(
-                        minId,
-                        maxId,
-                        List.of(
-                                ExchangeStatus.REQUESTED,
-                                ExchangeStatus.ACCEPTED,
-                                ExchangeStatus.ACTIVE));
-
-        if (existingSession.isPresent()) {
-            return existingSession.get();
+                return savedSession;
         }
 
-        // Fetch actual User entities
-        User userA = userRepository.findById(minId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + minId));
-        User userB = userRepository.findById(maxId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + maxId));
+        /* ================= ACCEPT SESSION ================= */
 
-        ExchangeSession session = new ExchangeSession();
-        session.setIntent(ExchangeIntent.AUDIO_CALL);
-        session.setStatus(ExchangeStatus.ACTIVE); // Start as ACTIVE for matching
-        session.setUserA(userA);
-        session.setUserB(userB);
+        public ExchangeSessionResponse acceptSession(Long sessionId, Long currentUserId) {
 
-        // Update presence to IN_SESSION
-        presenceService.updatePresence(userAId, PresenceStatus.IN_SESSION);
-        presenceService.updatePresence(userBId, PresenceStatus.IN_SESSION);
+                ExchangeSession session = getSessionOrThrow(sessionId);
 
-        ExchangeSession savedSession = exchangeSessionRepository.save(session);
+                if (!session.isParticipant(currentUserId)) {
+                        throw new AccessDeniedException("You are not part of this session");
+                }
 
-        // MatchFound handles the notification for this usually, but let's be consistent
-        // No broadbast here to avoid double notification with MATCH_FOUND
+                if (session.getStatus() != ExchangeStatus.REQUESTED) {
+                        throw new BadRequestException("Session is not in REQUESTED state");
+                }
 
-        return savedSession;
-    }
+                session.setStatus(ExchangeStatus.ACCEPTED);
+                ExchangeSession savedSession = exchangeSessionRepository.save(session);
+                ExchangeSessionResponse response = mapToResponse(savedSession);
 
-    /* ================= ACCEPT SESSION ================= */
+                // 🔥 Broadcast ACCEPTED to requester
+                // The requester is the one who created the request.
+                // If UserA started (requested), UserB accepts. We notify UserA.
+                // UserA is session.getUserA() usually?
+                // Wait, startSession logic: UserA/B are sorted.
+                // session.getRequest().getSender() is the original requester.
 
-    public ExchangeSessionResponse acceptSession(Long sessionId, Long currentUserId) {
+                Long requesterId = session.getRequest().getSender().getId();
 
-        ExchangeSession session = getSessionOrThrow(sessionId);
+                messagingTemplate.convertAndSendToUser(
+                                requesterId.toString(),
+                                "/queue/session",
+                                Map.of(
+                                                "type", "SESSION_ACCEPTED",
+                                                "sessionId", savedSession.getId(),
+                                                "accepterId", currentUserId));
 
-        if (!session.isParticipant(currentUserId)) {
-            throw new AccessDeniedException("You are not part of this session");
+                return response;
         }
 
-        if (session.getStatus() != ExchangeStatus.REQUESTED) {
-            throw new BadRequestException("Session is not in REQUESTED state");
+        /* ================= ACTIVATE SESSION ================= */
+
+        public ExchangeSessionResponse activateSession(Long sessionId, Long currentUserId) {
+
+                ExchangeSession session = getSessionOrThrow(sessionId);
+
+                if (!session.isParticipant(currentUserId)) {
+                        throw new AccessDeniedException("You are not part of this session");
+                }
+
+                if (session.getStatus() != ExchangeStatus.ACCEPTED) {
+                        throw new BadRequestException("Session must be ACCEPTED to activate");
+                }
+
+                // 🔒 NEW GUARD: prevent activation if any user is already BUSY
+                User userA = session.getUserA();
+                User userB = session.getUserB();
+
+                if (userA.getPresenceStatus() == PresenceStatus.BUSY
+                                || userB.getPresenceStatus() == PresenceStatus.BUSY) {
+                        throw new BadRequestException(
+                                        "One or more participants are already in another session");
+                }
+
+                session.setStatus(ExchangeStatus.ACTIVE);
+                session.setStartedAt(Instant.now(clock));
+
+                ExchangeSession saved = exchangeSessionRepository.save(session);
+
+                // 🔥 AUTO PRESENCE → BUSY
+                presenceService.updatePresence(userA.getId(), PresenceStatus.BUSY);
+                presenceService.setUserSession(userA.getId(), saved.getId()); // NEW
+
+                presenceService.updatePresence(userB.getId(), PresenceStatus.BUSY);
+                presenceService.setUserSession(userB.getId(), saved.getId()); // NEW
+
+                broadcastSessionStarted(saved);
+
+                return mapToResponse(saved);
         }
 
-        session.setStatus(ExchangeStatus.ACCEPTED);
-        ExchangeSession savedSession = exchangeSessionRepository.save(session);
-        ExchangeSessionResponse response = mapToResponse(savedSession);
+        // Helper to broadcast start & notify
+        private void broadcastSessionStarted(ExchangeSession session) {
+                // 1. Data Broadcast (for dashboard/state)
+                Map<String, Object> event = Map.of(
+                                "type", "SESSION_STARTED",
+                                "sessionId", session.getId());
 
-        // 🔥 Broadcast ACCEPTED to requester
-        // The requester is the one who created the request.
-        // If UserA started (requested), UserB accepts. We notify UserA.
-        // UserA is session.getUserA() usually?
-        // Wait, startSession logic: UserA/B are sorted.
-        // session.getRequest().getSender() is the original requester.
+                messagingTemplate.convertAndSendToUser(
+                                session.getUserA().getId().toString(),
+                                "/queue/session",
+                                event);
+                messagingTemplate.convertAndSendToUser(
+                                session.getUserB().getId().toString(),
+                                "/queue/session",
+                                event);
 
-        Long requesterId = session.getRequest().getSender().getId();
+                // 2. User Notification (Toast/History)
+                notificationService.createNotification(
+                                session.getUserA().getId(),
+                                NotificationType.MATCH_FOUND, // Or similar type
+                                "Exchange Started",
+                                "Your session with " + session.getUserB().getName() + " has started.",
+                                "{\"sessionId\":" + session.getId() + "}");
 
-        messagingTemplate.convertAndSendToUser(
-                requesterId.toString(),
-                "/queue/session",
-                Map.of(
-                        "type", "SESSION_ACCEPTED",
-                        "sessionId", savedSession.getId(),
-                        "accepterId", currentUserId));
-
-        return response;
-    }
-
-    /* ================= ACTIVATE SESSION ================= */
-
-    public ExchangeSessionResponse activateSession(Long sessionId, Long currentUserId) {
-
-        ExchangeSession session = getSessionOrThrow(sessionId);
-
-        if (!session.isParticipant(currentUserId)) {
-            throw new AccessDeniedException("You are not part of this session");
+                notificationService.createNotification(
+                                session.getUserB().getId(),
+                                NotificationType.MATCH_FOUND,
+                                "Exchange Started",
+                                "Your session with " + session.getUserA().getName() + " has started.",
+                                "{\"sessionId\":" + session.getId() + "}");
         }
 
-        if (session.getStatus() != ExchangeStatus.ACCEPTED) {
-            throw new BadRequestException("Session must be ACCEPTED to activate");
+        /* ================= END SESSION ================= */
+
+        public ExchangeSessionResponse endSession(Long sessionId, Long currentUserId) {
+
+                ExchangeSession session = getSessionOrThrow(sessionId);
+
+                // Debug logging
+                // Debug logs removed
+
+                if (!session.isParticipant(currentUserId)) {
+                        throw new AccessDeniedException("You are not part of this session");
+                }
+
+                // Allow ending if ACTIVE or ACCEPTED (in case of stuck sessions)
+                if (session.getStatus() != ExchangeStatus.ACTIVE && session.getStatus() != ExchangeStatus.ACCEPTED) {
+                        throw new BadRequestException(
+                                        "Only ACTIVE sessions can be ended. Current: " + session.getStatus());
+                }
+
+                session.setStatus(ExchangeStatus.COMPLETED);
+                session.setEndedAt(Instant.now(clock));
+
+                ExchangeSession saved = exchangeSessionRepository.save(session);
+
+                // End any active calls linked to this exchange
+                callService.endCallsForExchange(sessionId);
+
+                // RESTORE PRESENCE → ONLINE
+                presenceService.updatePresence(saved.getUserA().getId(), PresenceStatus.ONLINE);
+                presenceService.setUserSession(saved.getUserA().getId(), null);
+
+                presenceService.updatePresence(saved.getUserB().getId(), PresenceStatus.ONLINE);
+                presenceService.setUserSession(saved.getUserB().getId(), null);
+
+                // Get the user who ended the session
+                User endingUser = userRepository.findById(currentUserId).orElse(null);
+                String endingUserName = endingUser != null ? endingUser.getName() : "Unknown";
+
+                // Notify BOTH users via WebSocket
+                Map<String, Object> event = Map.of(
+                                "type", "SESSION_ENDED",
+                                "sessionId", sessionId,
+                                "endedByUserId", currentUserId,
+                                "endedByUserName", endingUserName);
+
+                messagingTemplate.convertAndSendToUser(
+                                saved.getUserA().getId().toString(),
+                                "/queue/session",
+                                event);
+                messagingTemplate.convertAndSendToUser(
+                                saved.getUserB().getId().toString(),
+                                "/queue/session",
+                                event);
+
+                return mapToResponse(saved);
         }
 
-        // 🔒 NEW GUARD: prevent activation if any user is already BUSY
-        User userA = session.getUserA();
-        User userB = session.getUserB();
+        /* ================= SYSTEM TIMEOUT ================= */
 
-        if (userA.getPresenceStatus() == PresenceStatus.BUSY
-                || userB.getPresenceStatus() == PresenceStatus.BUSY) {
-            throw new BadRequestException(
-                    "One or more participants are already in another session");
+        public void expireSession(Long sessionId) {
+                ExchangeSession session = getSessionOrThrow(sessionId);
+
+                // Race condition check
+                if (session.getStatus() != ExchangeStatus.ACTIVE) {
+                        return;
+                }
+
+                session.setStatus(ExchangeStatus.COMPLETED);
+                session.setEndedAt(Instant.now(clock));
+
+                ExchangeSession saved = exchangeSessionRepository.save(session);
+
+                // End any active calls linked to this exchange
+                callService.endCallsForExchange(sessionId);
+
+                // RESTORE PRESENCE → ONLINE
+                presenceService.updatePresence(saved.getUserA().getId(), PresenceStatus.ONLINE);
+                presenceService.setUserSession(saved.getUserA().getId(), null);
+
+                presenceService.updatePresence(saved.getUserB().getId(), PresenceStatus.ONLINE);
+                presenceService.setUserSession(saved.getUserB().getId(), null);
+
+                // Notify BOTH users via WebSocket
+                Map<String, Object> event = Map.of(
+                                "type", "SESSION_ENDED",
+                                "sessionId", sessionId,
+                                "endedByUserId", 0L, // System
+                                "endedByUserName", "System Timeout");
+
+                messagingTemplate.convertAndSendToUser(
+                                saved.getUserA().getId().toString(),
+                                "/queue/session",
+                                event);
+                messagingTemplate.convertAndSendToUser(
+                                saved.getUserB().getId().toString(),
+                                "/queue/session",
+                                event);
+
         }
 
-        session.setStatus(ExchangeStatus.ACTIVE);
-        session.setStartedAt(LocalDateTime.now());
+        /* ================= HELPERS ================= */
 
-        ExchangeSession saved = exchangeSessionRepository.save(session);
-
-        // 🔥 AUTO PRESENCE → BUSY
-        presenceService.updatePresence(userA.getId(), PresenceStatus.BUSY);
-        presenceService.setUserSession(userA.getId(), saved.getId()); // NEW
-
-        presenceService.updatePresence(userB.getId(), PresenceStatus.BUSY);
-        presenceService.setUserSession(userB.getId(), saved.getId()); // NEW
-
-        broadcastSessionStarted(saved);
-
-        return mapToResponse(saved);
-    }
-
-    // Helper to broadcast start & notify
-    private void broadcastSessionStarted(ExchangeSession session) {
-        // 1. Data Broadcast (for dashboard/state)
-        Map<String, Object> event = Map.of(
-                "type", "SESSION_STARTED",
-                "sessionId", session.getId());
-
-        messagingTemplate.convertAndSendToUser(
-                session.getUserA().getId().toString(),
-                "/queue/session",
-                event);
-        messagingTemplate.convertAndSendToUser(
-                session.getUserB().getId().toString(),
-                "/queue/session",
-                event);
-
-        // 2. User Notification (Toast/History)
-        notificationService.createNotification(
-                session.getUserA().getId(),
-                NotificationType.MATCH_FOUND, // Or similar type
-                "Exchange Started",
-                "Your session with " + session.getUserB().getName() + " has started.",
-                "{\"sessionId\":" + session.getId() + "}");
-
-        notificationService.createNotification(
-                session.getUserB().getId(),
-                NotificationType.MATCH_FOUND,
-                "Exchange Started",
-                "Your session with " + session.getUserA().getName() + " has started.",
-                "{\"sessionId\":" + session.getId() + "}");
-    }
-
-    /* ================= END SESSION ================= */
-
-    public ExchangeSessionResponse endSession(Long sessionId, Long currentUserId) {
-
-        ExchangeSession session = getSessionOrThrow(sessionId);
-
-        // Debug logging
-        System.out.println("[EndSession] Session ID: " + sessionId);
-        System.out.println("[EndSession] Current User ID: " + currentUserId);
-        System.out.println("[EndSession] Session UserA: " + session.getUserA().getId());
-        System.out.println("[EndSession] Session UserB: " + session.getUserB().getId());
-        System.out.println("[EndSession] Session Status: " + session.getStatus());
-        System.out.println("[EndSession] Is Participant: " + session.isParticipant(currentUserId));
-
-        if (!session.isParticipant(currentUserId)) {
-            throw new AccessDeniedException("You are not part of this session");
+        private ExchangeSession getSessionOrThrow(Long sessionId) {
+                return exchangeSessionRepository.findById(sessionId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Exchange session not found"));
         }
 
-        // Allow ending if ACTIVE or ACCEPTED (in case of stuck sessions)
-        if (session.getStatus() != ExchangeStatus.ACTIVE && session.getStatus() != ExchangeStatus.ACCEPTED) {
-            throw new BadRequestException("Only ACTIVE sessions can be ended. Current: " + session.getStatus());
+        private ExchangeSessionResponse mapToResponse(ExchangeSession session) {
+                return new ExchangeSessionResponse(
+                                session.getId(),
+                                session.getIntent(),
+                                session.getStatus(),
+                                session.getStartedAt(),
+                                session.getEndedAt());
         }
-
-        session.setStatus(ExchangeStatus.COMPLETED);
-        session.setEndedAt(LocalDateTime.now());
-
-        ExchangeSession saved = exchangeSessionRepository.save(session);
-
-        // End any active calls linked to this exchange
-        callService.endCallsForExchange(sessionId);
-
-        // RESTORE PRESENCE → ONLINE
-        presenceService.updatePresence(saved.getUserA().getId(), PresenceStatus.ONLINE);
-        presenceService.setUserSession(saved.getUserA().getId(), null);
-
-        presenceService.updatePresence(saved.getUserB().getId(), PresenceStatus.ONLINE);
-        presenceService.setUserSession(saved.getUserB().getId(), null);
-
-        // Get the user who ended the session
-        User endingUser = userRepository.findById(currentUserId).orElse(null);
-        String endingUserName = endingUser != null ? endingUser.getName() : "Unknown";
-
-        // Notify BOTH users via WebSocket
-        Map<String, Object> event = Map.of(
-                "type", "SESSION_ENDED",
-                "sessionId", sessionId,
-                "endedByUserId", currentUserId,
-                "endedByUserName", endingUserName);
-
-        messagingTemplate.convertAndSendToUser(
-                saved.getUserA().getId().toString(),
-                "/queue/session",
-                event);
-        messagingTemplate.convertAndSendToUser(
-                saved.getUserB().getId().toString(),
-                "/queue/session",
-                event);
-
-        System.out.println("[EndSession] Sent SESSION_ENDED to both users");
-
-        return mapToResponse(saved);
-    }
-
-    /* ================= SYSTEM TIMEOUT ================= */
-
-    public void expireSession(Long sessionId) {
-        ExchangeSession session = getSessionOrThrow(sessionId);
-
-        // Race condition check
-        if (session.getStatus() != ExchangeStatus.ACTIVE) {
-            return;
-        }
-
-        session.setStatus(ExchangeStatus.COMPLETED);
-        session.setEndedAt(LocalDateTime.now());
-
-        ExchangeSession saved = exchangeSessionRepository.save(session);
-
-        // End any active calls linked to this exchange
-        callService.endCallsForExchange(sessionId);
-
-        // RESTORE PRESENCE → ONLINE
-        presenceService.updatePresence(saved.getUserA().getId(), PresenceStatus.ONLINE);
-        presenceService.setUserSession(saved.getUserA().getId(), null);
-
-        presenceService.updatePresence(saved.getUserB().getId(), PresenceStatus.ONLINE);
-        presenceService.setUserSession(saved.getUserB().getId(), null);
-
-        // Notify BOTH users via WebSocket
-        Map<String, Object> event = Map.of(
-                "type", "SESSION_ENDED",
-                "sessionId", sessionId,
-                "endedByUserId", 0L, // System
-                "endedByUserName", "System Timeout");
-
-        messagingTemplate.convertAndSendToUser(
-                saved.getUserA().getId().toString(),
-                "/queue/session",
-                event);
-        messagingTemplate.convertAndSendToUser(
-                saved.getUserB().getId().toString(),
-                "/queue/session",
-                event);
-
-        System.out.println("[ExpireSession] Sent SESSION_ENDED to both users");
-    }
-
-    /* ================= HELPERS ================= */
-
-    private ExchangeSession getSessionOrThrow(Long sessionId) {
-        return exchangeSessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Exchange session not found"));
-    }
-
-    private ExchangeSessionResponse mapToResponse(ExchangeSession session) {
-        return new ExchangeSessionResponse(
-                session.getId(),
-                session.getIntent(),
-                session.getStatus(),
-                session.getStartedAt(),
-                session.getEndedAt());
-    }
 }

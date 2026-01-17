@@ -24,13 +24,17 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final WebSocketHandshakeInterceptor handshakeInterceptor;
     private final WebSocketPrincipalHandler principalHandler;
 
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
     public WebSocketConfig(
             WebSocketAuthChannelInterceptor authInterceptor,
             WebSocketHandshakeInterceptor handshakeInterceptor,
-            WebSocketPrincipalHandler principalHandler) {
+            WebSocketPrincipalHandler principalHandler,
+            com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
         this.authInterceptor = authInterceptor;
         this.handshakeInterceptor = handshakeInterceptor;
         this.principalHandler = principalHandler;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -43,6 +47,18 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
         // User-specific messages use /user prefix
         config.setUserDestinationPrefix("/user");
+    }
+
+    @Override
+    public boolean configureMessageConverters(
+            java.util.List<org.springframework.messaging.converter.MessageConverter> messageConverters) {
+        org.springframework.messaging.converter.DefaultContentTypeResolver resolver = new org.springframework.messaging.converter.DefaultContentTypeResolver();
+        resolver.setDefaultMimeType(org.springframework.util.MimeTypeUtils.APPLICATION_JSON);
+        org.springframework.messaging.converter.MappingJackson2MessageConverter converter = new org.springframework.messaging.converter.MappingJackson2MessageConverter();
+        converter.setObjectMapper(objectMapper);
+        converter.setContentTypeResolver(resolver);
+        messageConverters.add(converter);
+        return false;
     }
 
     @Override

@@ -4,8 +4,10 @@ import com.Project.Continuum.enums.PresenceStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
-import java.time.LocalDateTime;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -26,6 +28,12 @@ public class PresenceStore {
     private static final Logger log = LoggerFactory.getLogger(PresenceStore.class);
 
     private final Map<Long, UserPresenceData> store = new ConcurrentHashMap<>();
+    private final Clock clock;
+
+    @Autowired
+    public PresenceStore(Clock clock) {
+        this.clock = clock;
+    }
 
     /**
      * Increment connection count when WebSocket connects.
@@ -33,11 +41,12 @@ public class PresenceStore {
      */
     public int addConnection(Long userId) {
         UserPresenceData data = store.compute(userId, (id, existing) -> {
+            Instant now = Instant.now(clock);
             if (existing == null) {
-                return new UserPresenceData(PresenceStatus.ONLINE, LocalDateTime.now(), null, 1);
+                return new UserPresenceData(PresenceStatus.ONLINE, now, null, 1);
             }
             existing.incrementConnections();
-            existing.setLastSeenAt(LocalDateTime.now());
+            existing.setLastSeenAt(now);
             // If was OFFLINE, switch to ONLINE
             if (existing.getStatus() == PresenceStatus.OFFLINE) {
                 existing.setStatus(PresenceStatus.ONLINE);
@@ -59,7 +68,7 @@ public class PresenceStore {
         store.computeIfPresent(userId, (id, data) -> {
             data.decrementConnections();
             remaining.set(data.getConnectionCount());
-            data.setLastSeenAt(LocalDateTime.now());
+            data.setLastSeenAt(Instant.now(clock));
             return data;
         });
 
@@ -78,23 +87,24 @@ public class PresenceStore {
 
     public void setUserStatus(Long userId, PresenceStatus status) {
         store.compute(userId, (id, data) -> {
+            Instant now = Instant.now(clock);
             boolean hasSession = (data != null && data.getActiveSessionId() != null);
 
             // If reconnecting (ONLINE) but has session, stay BUSY
             if (status == PresenceStatus.ONLINE && hasSession) {
                 if (data == null) {
-                    return new UserPresenceData(PresenceStatus.BUSY, LocalDateTime.now(), null, 0);
+                    return new UserPresenceData(PresenceStatus.BUSY, now, null, 0);
                 }
                 data.setStatus(PresenceStatus.BUSY);
-                data.setLastSeenAt(LocalDateTime.now());
+                data.setLastSeenAt(now);
                 return data;
             }
 
             if (data == null) {
-                return new UserPresenceData(status, LocalDateTime.now(), null, 0);
+                return new UserPresenceData(status, now, null, 0);
             }
             data.setStatus(status);
-            data.setLastSeenAt(LocalDateTime.now());
+            data.setLastSeenAt(now);
             return data;
         });
     }
@@ -102,7 +112,7 @@ public class PresenceStore {
     public void setUserSession(Long userId, Long sessionId) {
         store.compute(userId, (id, data) -> {
             if (data == null) {
-                return new UserPresenceData(PresenceStatus.BUSY, LocalDateTime.now(), sessionId, 0);
+                return new UserPresenceData(PresenceStatus.BUSY, Instant.now(clock), sessionId, 0);
             }
             data.setActiveSessionId(sessionId);
             return data;
@@ -111,7 +121,7 @@ public class PresenceStore {
 
     public void updateLastSeen(Long userId) {
         store.computeIfPresent(userId, (id, data) -> {
-            data.setLastSeenAt(LocalDateTime.now());
+            data.setLastSeenAt(Instant.now(clock));
             return data;
         });
     }
@@ -121,7 +131,7 @@ public class PresenceStore {
         return data != null ? data.getStatus() : PresenceStatus.OFFLINE;
     }
 
-    public LocalDateTime getLastSeen(Long userId) {
+    public Instant getLastSeen(Long userId) {
         UserPresenceData data = store.get(userId);
         return data != null ? data.getLastSeenAt() : null;
     }
@@ -133,11 +143,11 @@ public class PresenceStore {
     /**
      * Check if a user is stale (no recent activity).
      */
-    public boolean isStale(Long userId, LocalDateTime cutoff) {
+    public boolean isStale(Long userId, Instant cutoff) {
         UserPresenceData data = store.get(userId);
         if (data == null)
             return true;
-        LocalDateTime lastSeen = data.getLastSeenAt();
+        Instant lastSeen = data.getLastSeenAt();
         return lastSeen == null || lastSeen.isBefore(cutoff);
     }
 
@@ -154,11 +164,11 @@ public class PresenceStore {
     // Internal Data Class
     private static class UserPresenceData {
         private PresenceStatus status;
-        private LocalDateTime lastSeenAt;
+        private Instant lastSeenAt;
         private Long activeSessionId;
         private int connectionCount;
 
-        public UserPresenceData(PresenceStatus status, LocalDateTime lastSeenAt, Long activeSessionId,
+        public UserPresenceData(PresenceStatus status, Instant lastSeenAt, Long activeSessionId,
                 int connectionCount) {
             this.status = status;
             this.lastSeenAt = lastSeenAt;
@@ -174,11 +184,11 @@ public class PresenceStore {
             this.status = status;
         }
 
-        public LocalDateTime getLastSeenAt() {
+        public Instant getLastSeenAt() {
             return lastSeenAt;
         }
 
-        public void setLastSeenAt(LocalDateTime lastSeenAt) {
+        public void setLastSeenAt(Instant lastSeenAt) {
             this.lastSeenAt = lastSeenAt;
         }
 

@@ -3,7 +3,7 @@ package com.Project.Continuum.dto.exchange;
 import com.Project.Continuum.enums.ExchangeIntent;
 import com.Project.Continuum.enums.ExchangeStatus;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * Full session details response including participant info.
@@ -14,8 +14,8 @@ public class ExchangeSessionDetailsResponse {
     private Long sessionId;
     private ExchangeIntent intent;
     private ExchangeStatus status;
-    private LocalDateTime startedAt;
-    private LocalDateTime endedAt;
+    private Instant startedAt;
+    private Instant endedAt;
 
     // Participant info
     private Long userAId;
@@ -27,8 +27,8 @@ public class ExchangeSessionDetailsResponse {
             Long sessionId,
             ExchangeIntent intent,
             ExchangeStatus status,
-            LocalDateTime startedAt,
-            LocalDateTime endedAt,
+            Instant startedAt,
+            Instant endedAt,
             Long userAId,
             String userAName,
             Long userBId,
@@ -57,11 +57,11 @@ public class ExchangeSessionDetailsResponse {
         return status;
     }
 
-    public LocalDateTime getStartedAt() {
+    public Instant getStartedAt() {
         return startedAt;
     }
 
-    public LocalDateTime getEndedAt() {
+    public Instant getEndedAt() {
         return endedAt;
     }
 

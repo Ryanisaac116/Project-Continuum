@@ -1,18 +1,19 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PresenceBadge from '../components/ui/PresenceBadge';
 import { useAuth } from '../auth/AuthContext';
 import chatApi from '../api/chat';
 import friendsApi from '../api/friends';
 import apiClient, { getToken } from '../api/client';
+import { formatTime, formatDateSeparator, isSameDay } from '../utils/dateUtils';
 import {
     connectChatSocket,
     sendChatMessage,
+    disconnectChatSocket,
     isChatConnected,
     subscribeToPresence,
     updateMessageCallback
 } from '../ws/chatSocket';
-
 
 // Icons
 const BackIcon = () => (
@@ -158,6 +159,21 @@ const ChatPage = () => {
     }, [messages, scrollToBottom]);
 
     const handleIncomingMessage = useCallback((msg) => {
+        // Handle Delivery/Seen Events
+        if (msg.type === 'MESSAGE_DELIVERED' || msg.type === 'MESSAGE_SEEN') {
+            setMessages((prev) => prev.map((m) => {
+                if (m.id === msg.messageId) {
+                    return {
+                        ...m,
+                        deliveredAt: msg.type === 'MESSAGE_DELIVERED' ? msg.deliveredAt : (m.deliveredAt || msg.seenAt),
+                        seenAt: msg.type === 'MESSAGE_SEEN' ? msg.seenAt : m.seenAt
+                    };
+                }
+                return m;
+            }));
+            return;
+        }
+
         // Only process messages for this chat
         if (
             msg.senderId === Number(friendId) ||
@@ -181,6 +197,53 @@ const ChatPage = () => {
             });
         }
     }, [friendId]);
+
+    // Visibility Tracking (Seen Status)
+    const observerRef = useRef(null);
+    useEffect(() => {
+        if (messages.length === 0 || !user) return;
+
+        // Disconnect previous observer
+        if (observerRef.current) observerRef.current.disconnect();
+
+        const pendingUpdates = new Set();
+        let timeout = null;
+
+        const processUpdates = () => {
+            if (pendingUpdates.size > 0) {
+                chatApi.markMessagesSeen(Array.from(pendingUpdates));
+                pendingUpdates.clear();
+            }
+        };
+
+        observerRef.current = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    const msgId = Number(entry.target.dataset.messageId);
+                    const msg = messages.find(m => m.id === msgId);
+
+                    // Mark as seen if: NOT me, AND not already seen
+                    if (msg && msg.senderId !== user.id && !msg.seenAt) {
+                        pendingUpdates.add(msgId);
+
+                        // Debounce updates
+                        if (timeout) clearTimeout(timeout);
+                        timeout = setTimeout(processUpdates, 1000);
+                    }
+                }
+            });
+        }, { threshold: 0.5 }); // 50% visible
+
+        // Observe all message elements
+        const messageElements = document.querySelectorAll('[data-message-id]');
+        messageElements.forEach(el => observerRef.current.observe(el));
+
+        return () => {
+            if (timeout) clearTimeout(timeout);
+            processUpdates(); // flush remaining
+            if (observerRef.current) observerRef.current.disconnect();
+        };
+    }, [messages, user]);
 
     // Fetch friend info and chat history
     useEffect(() => {
@@ -737,8 +800,8 @@ const ChatPage = () => {
                         <div className="space-y-2">
                             {messages.map((msg, index) => {
                                 const isMe = msg.senderId === user?.id;
-                                const isDeleted = isMe ? msg.isDeletedForSender : msg.isDeletedForReceiver;
-                                const isDeletedGlobally = msg.isDeletedGlobally;
+                                const isDeleted = isMe ? msg.deletedForSender : msg.deletedForReceiver;
+                                const isDeletedGlobally = msg.deletedGlobally;
                                 const isSelected = selectedIds.has(msg.id);
                                 const isEditing = editingId === msg.id;
                                 const isHighlighted = highlightedMessageId === msg.id;
@@ -752,6 +815,7 @@ const ChatPage = () => {
                                 const showDateSeparator = !prevMsg || !isSameDay(msg.sentAt, prevMsg.sentAt);
 
                                 const currentSwipeOffset = swipeOffset[msg.id] || 0;
+
 
                                 return (
                                     <div key={msg.id}>
@@ -923,6 +987,31 @@ const ChatPage = () => {
                                                             }`}>
                                                             {msg.editedAt && <span className="italic">edited</span>}
                                                             <span>{formatTime(msg.sentAt)}</span>
+                                                            {isMe && !isDeleted && (
+                                                                <div className="flex items-center ml-1">
+                                                                    {msg.seenAt ? (
+                                                                        <div title={`Seen at ${formatTime(msg.seenAt)}`} className="text-cyan-300 drop-shadow-sm">
+                                                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                <path d="M17 6L9.5 13.5L7 11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                                                                <path d="M22 6L14.5 13.5L12 11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                                                            </svg>
+                                                                        </div>
+                                                                    ) : msg.deliveredAt ? (
+                                                                        <div title={`Delivered at ${formatTime(msg.deliveredAt)}`} className="text-white drop-shadow-sm">
+                                                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                <path d="M17 6L9.5 13.5L7 11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                                                                <path d="M22 6L14.5 13.5L12 11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                                                            </svg>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div title="Sent" className="text-blue-200/60">
+                                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                                                            </svg>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </>
                                                 )}
@@ -1050,43 +1139,5 @@ const ChatPage = () => {
         </div>
     );
 };
-
-function formatTime(timestamp) {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-    });
-}
-
-function formatDateSeparator(timestamp) {
-    if (!timestamp) return '';
-    const msgDate = new Date(timestamp);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    const isToday = msgDate.toDateString() === today.toDateString();
-    const isYesterday = msgDate.toDateString() === yesterday.toDateString();
-
-    if (isToday) return 'Today';
-    if (isYesterday) return 'Yesterday';
-
-    return msgDate.toLocaleDateString([], {
-        weekday: 'long',
-        month: 'short',
-        day: 'numeric',
-        year: msgDate.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
-    });
-}
-
-function isSameDay(date1, date2) {
-    if (!date1 || !date2) return false;
-    const d1 = new Date(date1);
-    const d2 = new Date(date2);
-    return d1.toDateString() === d2.toDateString();
-}
 
 export default ChatPage;

@@ -1,7 +1,7 @@
 package com.Project.Continuum.entity;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * PushSubscription - Stores web push subscription info for a user.
@@ -39,14 +39,14 @@ public class PushSubscription {
     private String auth;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Column(name = "last_used_at")
-    private LocalDateTime lastUsedAt;
+    private Instant lastUsedAt;
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
     }
 
     // ==================== GETTERS ====================
@@ -71,11 +71,11 @@ public class PushSubscription {
         return auth;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public LocalDateTime getLastUsedAt() {
+    public Instant getLastUsedAt() {
         return lastUsedAt;
     }
 
@@ -101,7 +101,7 @@ public class PushSubscription {
         this.auth = auth;
     }
 
-    public void setLastUsedAt(LocalDateTime lastUsedAt) {
+    public void setLastUsedAt(Instant lastUsedAt) {
         this.lastUsedAt = lastUsedAt;
     }
 }

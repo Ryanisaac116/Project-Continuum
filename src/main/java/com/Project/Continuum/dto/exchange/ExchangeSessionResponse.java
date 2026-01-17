@@ -3,23 +3,22 @@ package com.Project.Continuum.dto.exchange;
 import com.Project.Continuum.enums.ExchangeIntent;
 import com.Project.Continuum.enums.ExchangeStatus;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public class ExchangeSessionResponse {
 
     private Long sessionId;
     private ExchangeIntent intent;
     private ExchangeStatus status;
-    private LocalDateTime startedAt;
-    private LocalDateTime endedAt;
+    private Instant startedAt;
+    private Instant endedAt;
 
     public ExchangeSessionResponse(
             Long sessionId,
             ExchangeIntent intent,
             ExchangeStatus status,
-            LocalDateTime startedAt,
-            LocalDateTime endedAt
-    ) {
+            Instant startedAt,
+            Instant endedAt) {
         this.sessionId = sessionId;
         this.intent = intent;
         this.status = status;
@@ -39,11 +38,11 @@ public class ExchangeSessionResponse {
         return status;
     }
 
-    public LocalDateTime getStartedAt() {
+    public Instant getStartedAt() {
         return startedAt;
     }
 
-    public LocalDateTime getEndedAt() {
+    public Instant getEndedAt() {
         return endedAt;
     }
 }

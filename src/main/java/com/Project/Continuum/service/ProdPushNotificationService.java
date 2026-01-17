@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.annotation.PostConstruct;
 import java.security.Security;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -137,7 +137,7 @@ public class ProdPushNotificationService implements PushNotificationService {
 
             pushService.send(notification);
 
-            sub.setLastUsedAt(LocalDateTime.now());
+            sub.setLastUsedAt(Instant.now());
             subscriptionRepository.save(sub);
 
             log.debug("Push sent to user {} endpoint {}", sub.getUserId(),

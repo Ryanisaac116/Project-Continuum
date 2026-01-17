@@ -4,7 +4,7 @@ import com.Project.Continuum.enums.CallStatus;
 import com.Project.Continuum.enums.CallEndReason;
 import com.Project.Continuum.enums.CallType;
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "call_sessions")
@@ -48,13 +48,13 @@ public class CallSession {
     private boolean screenShareActive = false;
 
     @Column(name = "initiated_at", nullable = false)
-    private LocalDateTime initiatedAt;
+    private Instant initiatedAt;
 
     @Column(name = "accepted_at")
-    private LocalDateTime acceptedAt;
+    private Instant acceptedAt;
 
     @Column(name = "ended_at")
-    private LocalDateTime endedAt;
+    private Instant endedAt;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "end_reason")
@@ -93,15 +93,15 @@ public class CallSession {
         return screenShareActive;
     }
 
-    public LocalDateTime getInitiatedAt() {
+    public Instant getInitiatedAt() {
         return initiatedAt;
     }
 
-    public LocalDateTime getAcceptedAt() {
+    public Instant getAcceptedAt() {
         return acceptedAt;
     }
 
-    public LocalDateTime getEndedAt() {
+    public Instant getEndedAt() {
         return endedAt;
     }
 
@@ -139,15 +139,15 @@ public class CallSession {
         this.screenShareActive = screenShareActive;
     }
 
-    public void setInitiatedAt(LocalDateTime initiatedAt) {
+    public void setInitiatedAt(Instant initiatedAt) {
         this.initiatedAt = initiatedAt;
     }
 
-    public void setAcceptedAt(LocalDateTime acceptedAt) {
+    public void setAcceptedAt(Instant acceptedAt) {
         this.acceptedAt = acceptedAt;
     }
 
-    public void setEndedAt(LocalDateTime endedAt) {
+    public void setEndedAt(Instant endedAt) {
         this.endedAt = endedAt;
     }
 

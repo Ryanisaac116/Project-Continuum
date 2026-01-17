@@ -23,11 +23,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.scheduling.TaskScheduler;
-import java.time.LocalDateTime;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-
-import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import org.slf4j.Logger;
@@ -53,6 +52,7 @@ public class CallService {
     private final PresenceService presenceService;
     private final SimpMessageSendingOperations messagingTemplate;
     private final NotificationService notificationService;
+    private final Clock clock;
 
     public CallService(
             CallSessionRepository callSessionRepository,
@@ -63,6 +63,7 @@ public class CallService {
             PresenceService presenceService,
             SimpMessageSendingOperations messagingTemplate,
             NotificationService notificationService,
+            Clock clock,
             TaskScheduler taskScheduler) {
         this.callSessionRepository = callSessionRepository;
         this.exchangeSessionRepository = exchangeSessionRepository;
@@ -72,6 +73,7 @@ public class CallService {
         this.presenceService = presenceService;
         this.messagingTemplate = messagingTemplate;
         this.notificationService = notificationService;
+        this.clock = clock;
         this.taskScheduler = taskScheduler;
     }
 
@@ -118,7 +120,7 @@ public class CallService {
         call.setStatus(CallStatus.RINGING);
         call.setCallType(CallType.FRIEND);
         call.setExchangeSession(null); // FRIEND calls have no exchange
-        call.setInitiatedAt(LocalDateTime.now());
+        call.setInitiatedAt(Instant.now(clock));
         callSessionRepository.save(call);
 
         // Broadcast and notify
@@ -179,7 +181,7 @@ public class CallService {
         call.setStatus(CallStatus.RINGING);
         call.setCallType(CallType.EXCHANGE);
         call.setExchangeSession(exchange);
-        call.setInitiatedAt(LocalDateTime.now());
+        call.setInitiatedAt(Instant.now(clock));
         callSessionRepository.save(call);
 
         // Broadcast and notify
@@ -211,7 +213,7 @@ public class CallService {
             if (exchange == null || exchange.getStatus() != ExchangeStatus.ACTIVE) {
                 // Exchange ended before call was accepted
                 call.setStatus(CallStatus.ENDED);
-                call.setEndedAt(LocalDateTime.now());
+                call.setEndedAt(Instant.now(clock));
                 call.setEndReason(CallEndReason.EXCHANGE_ENDED);
                 callSessionRepository.save(call);
                 throw new BadRequestException("Exchange session has ended");
@@ -220,7 +222,7 @@ public class CallService {
 
         // Update call status
         call.setStatus(CallStatus.ACCEPTED);
-        call.setAcceptedAt(LocalDateTime.now());
+        call.setAcceptedAt(Instant.now(clock));
         callSessionRepository.save(call);
 
         // Transition both users to IN_SESSION
@@ -263,7 +265,7 @@ public class CallService {
 
         // Update call status
         call.setStatus(CallStatus.REJECTED);
-        call.setEndedAt(LocalDateTime.now());
+        call.setEndedAt(Instant.now(clock));
         call.setEndReason(CallEndReason.REJECTED);
         callSessionRepository.save(call);
 
@@ -341,7 +343,7 @@ public class CallService {
 
     private CallSession endCallInternal(CallSession call, CallEndReason endReason) {
         call.setStatus(CallStatus.ENDED);
-        call.setEndedAt(LocalDateTime.now());
+        call.setEndedAt(Instant.now(clock));
         call.setEndReason(endReason);
         callSessionRepository.save(call);
 
@@ -455,7 +457,7 @@ public class CallService {
         // Schedule disconnect task
         ScheduledFuture<?> timer = taskScheduler.schedule(
                 () -> handleDisconnectTimeout(userId),
-                Instant.now().plusSeconds(15));
+                Instant.now(clock).plusSeconds(15));
 
         disconnectTimers.put(userId, timer);
     }

@@ -2,7 +2,7 @@ package com.Project.Continuum.dto.notification;
 
 import com.Project.Continuum.entity.Notification;
 import com.Project.Continuum.enums.NotificationType;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public class NotificationResponse {
     private Long id;
@@ -11,7 +11,7 @@ public class NotificationResponse {
     private String message;
     private String payload;
     private boolean isRead;
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     public NotificationResponse() {
     }
@@ -75,11 +75,11 @@ public class NotificationResponse {
         isRead = read;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
 }

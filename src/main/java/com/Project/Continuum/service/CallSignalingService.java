@@ -61,8 +61,5 @@ public class CallSignalingService {
                 String.valueOf(recipientId),
                 "/queue/call-signal",
                 message);
-
-        System.out.println("[CallSignaling] Relayed " + message.getType() +
-                " from " + senderId + " to " + recipientId);
     }
 }

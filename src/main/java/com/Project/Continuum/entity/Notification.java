@@ -2,7 +2,7 @@ package com.Project.Continuum.entity;
 
 import com.Project.Continuum.enums.NotificationType;
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "notifications", indexes = {
@@ -35,7 +35,7 @@ public class Notification {
     private boolean isRead = false;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     public Notification() {
     }
@@ -69,7 +69,7 @@ public class Notification {
         return isRead;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 
@@ -102,7 +102,7 @@ public class Notification {
         isRead = read;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
 }

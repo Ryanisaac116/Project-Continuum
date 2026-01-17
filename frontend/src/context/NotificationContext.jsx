@@ -46,6 +46,16 @@ export const NotificationProvider = ({ children }) => {
             return;
         }
 
+        if (notification.type === 'NOTIFICATION_READ') {
+            setNotifications(prev => prev.map(n =>
+                n.id === notification.id ? { ...n, isRead: true } : n
+            ));
+            // Only decrement if we actually found an unread one, but count logic is simpler:
+            // Just sync count or decrement safely.
+            setUnreadCount(prev => Math.max(0, prev - 1));
+            return;
+        }
+
         // Add to notifications list
         setNotifications((prev) => [notification, ...prev]);
         setUnreadCount((prev) => prev + 1);

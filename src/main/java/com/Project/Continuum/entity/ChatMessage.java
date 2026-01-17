@@ -1,7 +1,7 @@
 package com.Project.Continuum.entity;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "chat_messages")
@@ -23,10 +23,16 @@ public class ChatMessage {
     private String content;
 
     @Column(name = "sent_at", nullable = false)
-    private LocalDateTime sentAt;
+    private Instant sentAt;
 
     @Column(name = "edited_at")
-    private LocalDateTime editedAt;
+    private Instant editedAt;
+
+    @Column(name = "delivered_at")
+    private Instant deliveredAt;
+
+    @Column(name = "seen_at")
+    private Instant seenAt;
 
     @Column(name = "is_deleted_for_sender", nullable = false)
     private boolean deletedForSender = false;
@@ -77,19 +83,19 @@ public class ChatMessage {
         this.content = content;
     }
 
-    public LocalDateTime getSentAt() {
+    public Instant getSentAt() {
         return sentAt;
     }
 
-    public void setSentAt(LocalDateTime sentAt) {
+    public void setSentAt(Instant sentAt) {
         this.sentAt = sentAt;
     }
 
-    public LocalDateTime getEditedAt() {
+    public Instant getEditedAt() {
         return editedAt;
     }
 
-    public void setEditedAt(LocalDateTime editedAt) {
+    public void setEditedAt(Instant editedAt) {
         this.editedAt = editedAt;
     }
 
@@ -123,5 +129,21 @@ public class ChatMessage {
 
     public void setDeletedGlobally(boolean deletedGlobally) {
         this.deletedGlobally = deletedGlobally;
+    }
+
+    public Instant getDeliveredAt() {
+        return deliveredAt;
+    }
+
+    public void setDeliveredAt(Instant deliveredAt) {
+        this.deliveredAt = deliveredAt;
+    }
+
+    public Instant getSeenAt() {
+        return seenAt;
+    }
+
+    public void setSeenAt(Instant seenAt) {
+        this.seenAt = seenAt;
     }
 }

@@ -3,7 +3,7 @@ package com.Project.Continuum.entity;
 import com.Project.Continuum.enums.PresenceStatus;
 import com.Project.Continuum.enums.AuthProvider;
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 
@@ -25,7 +25,7 @@ public class User {
     private boolean isActive = true;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "auth_provider", nullable = false)
@@ -39,7 +39,7 @@ public class User {
     private PresenceStatus presenceStatus = PresenceStatus.OFFLINE;
 
     @Column(name = "last_seen_at")
-    private LocalDateTime lastSeenAt;
+    private Instant lastSeenAt;
 
     @Column(name = "session_token")
     private String sessionToken;
@@ -61,7 +61,7 @@ public class User {
         return isActive;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 
@@ -69,7 +69,7 @@ public class User {
         return presenceStatus;
     }
 
-    public LocalDateTime getLastSeenAt() {
+    public Instant getLastSeenAt() {
         return lastSeenAt;
     }
 
@@ -102,7 +102,7 @@ public class User {
         this.presenceStatus = presenceStatus;
     }
 
-    public void setLastSeenAt(LocalDateTime lastSeenAt) {
+    public void setLastSeenAt(Instant lastSeenAt) {
         this.lastSeenAt = lastSeenAt;
     }
 
@@ -121,7 +121,7 @@ public class User {
     @PrePersist
     protected void onCreate() {
         if (this.createdAt == null) {
-            this.createdAt = LocalDateTime.now();
+            this.createdAt = Instant.now();
         }
     }
 }

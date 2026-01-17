@@ -75,7 +75,6 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
                                 Collections.emptyList());
                         attributes.put("simpUser", auth);
 
-                        System.out.println("[WebSocketHandshake] Authenticated user: " + userId);
                         return true;
                     }
                 } catch (Exception e) {
@@ -86,7 +85,7 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
 
         // Allow connection but without authentication
         // (will fail on protected operations)
-        System.out.println("[WebSocketHandshake] No valid token, allowing unauthenticated connection");
+
         return true;
     }
 

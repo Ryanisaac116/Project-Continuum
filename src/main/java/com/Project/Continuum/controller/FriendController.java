@@ -6,6 +6,7 @@ import com.Project.Continuum.dto.friend.RecentlyMetResponse;
 import com.Project.Continuum.security.SecurityUtils;
 import com.Project.Continuum.service.FriendService;
 import org.springframework.web.bind.annotation.*;
+import com.Project.Continuum.enums.FriendSource;
 
 import java.util.List;
 
@@ -52,7 +53,7 @@ public class FriendController {
                         () -> new com.Project.Continuum.exception.ResourceNotFoundException("Target user not found"));
 
         // Enforce EXCHANGE source to checks for completed session
-        friendService.sendFriendRequest(sender, receiver, com.Project.Continuum.enums.FriendSource.EXCHANGE);
+        friendService.sendFriendRequest(sender, receiver, FriendSource.EXCHANGE);
     }
 
     @PostMapping("/{requesterId}/accept")

@@ -1,6 +1,6 @@
 package com.Project.Continuum.dto.chat;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public class ChatMessageResponse {
 
@@ -8,11 +8,13 @@ public class ChatMessageResponse {
     private Long senderId;
     private Long recipientId;
     private String content;
-    private LocalDateTime sentAt;
-    private LocalDateTime editedAt;
+    private Instant sentAt;
+    private Instant editedAt;
     private boolean deletedForSender;
     private boolean deletedForReceiver;
     private boolean deletedGlobally;
+    private Instant deliveredAt;
+    private Instant seenAt;
 
     // Reply info
     private Long replyToId;
@@ -20,7 +22,7 @@ public class ChatMessageResponse {
     private String replyToSenderName;
 
     // Original constructor for backward compatibility
-    public ChatMessageResponse(Long id, Long senderId, Long recipientId, String content, LocalDateTime sentAt) {
+    public ChatMessageResponse(Long id, Long senderId, Long recipientId, String content, Instant sentAt) {
         this.id = id;
         this.senderId = senderId;
         this.recipientId = recipientId;
@@ -28,10 +30,9 @@ public class ChatMessageResponse {
         this.sentAt = sentAt;
     }
 
-    // Full constructor with all fields
     public ChatMessageResponse(Long id, Long senderId, Long recipientId, String content,
-            LocalDateTime sentAt, LocalDateTime editedAt, boolean deletedForSender, boolean deletedForReceiver,
-            boolean deletedGlobally,
+            Instant sentAt, Instant editedAt, boolean deletedForSender, boolean deletedForReceiver,
+            boolean deletedGlobally, Instant deliveredAt, Instant seenAt,
             Long replyToId, String replyToContent, String replyToSenderName) {
         this.id = id;
         this.senderId = senderId;
@@ -42,6 +43,8 @@ public class ChatMessageResponse {
         this.deletedForSender = deletedForSender;
         this.deletedForReceiver = deletedForReceiver;
         this.deletedGlobally = deletedGlobally;
+        this.deliveredAt = deliveredAt;
+        this.seenAt = seenAt;
         this.replyToId = replyToId;
         this.replyToContent = replyToContent;
         this.replyToSenderName = replyToSenderName;
@@ -63,11 +66,11 @@ public class ChatMessageResponse {
         return content;
     }
 
-    public LocalDateTime getSentAt() {
+    public Instant getSentAt() {
         return sentAt;
     }
 
-    public LocalDateTime getEditedAt() {
+    public Instant getEditedAt() {
         return editedAt;
     }
 
@@ -93,5 +96,13 @@ public class ChatMessageResponse {
 
     public String getReplyToSenderName() {
         return replyToSenderName;
+    }
+
+    public Instant getDeliveredAt() {
+        return deliveredAt;
+    }
+
+    public Instant getSeenAt() {
+        return seenAt;
     }
 }

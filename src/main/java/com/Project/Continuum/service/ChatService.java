@@ -14,7 +14,8 @@ import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -25,17 +26,25 @@ public class ChatService {
         private final FriendRepository friendRepository;
         private final SimpMessageSendingOperations messagingTemplate;
         private final NotificationService notificationService;
+        private final Clock clock;
 
+        private final com.Project.Continuum.store.PresenceStore presenceStore;
+
+        @org.springframework.beans.factory.annotation.Autowired
         public ChatService(ChatMessageRepository chatMessageRepository,
                         UserRepository userRepository,
                         FriendRepository friendRepository,
                         SimpMessageSendingOperations messagingTemplate,
-                        NotificationService notificationService) {
+                        NotificationService notificationService,
+                        Clock clock,
+                        com.Project.Continuum.store.PresenceStore presenceStore) {
                 this.chatMessageRepository = chatMessageRepository;
                 this.userRepository = userRepository;
                 this.friendRepository = friendRepository;
                 this.messagingTemplate = messagingTemplate;
                 this.notificationService = notificationService;
+                this.clock = clock;
+                this.presenceStore = presenceStore;
         }
 
         // ==================== SEND MESSAGE ====================
@@ -55,7 +64,16 @@ public class ChatService {
                 message.setSender(sender);
                 message.setRecipient(recipient);
                 message.setContent(request.getContent());
-                message.setSentAt(LocalDateTime.now());
+                message.setSentAt(Instant.now(clock));
+
+                // Check immediate delivery
+                com.Project.Continuum.enums.PresenceStatus recipientStatus = presenceStore.getStatus(recipient.getId());
+                boolean isDelivered = recipientStatus == com.Project.Continuum.enums.PresenceStatus.ONLINE ||
+                                recipientStatus == com.Project.Continuum.enums.PresenceStatus.IN_SESSION;
+
+                if (isDelivered) {
+                        message.setDeliveredAt(Instant.now(clock));
+                }
 
                 // Handle reply
                 if (request.getReplyToId() != null) {
@@ -81,6 +99,89 @@ public class ChatService {
                                 "{\"senderId\":" + sender.getId() + "}");
 
                 return response;
+
+        }
+
+        // ==================== MARK SEEN ====================
+        @Transactional
+        public void markMessagesAsSeen(Long userId, List<Long> messageIds) {
+                if (messageIds == null || messageIds.isEmpty())
+                        return;
+
+                List<ChatMessage> messages = chatMessageRepository.findAllById(messageIds);
+                Instant now = Instant.now(clock);
+                boolean anyUpdated = false;
+
+                for (ChatMessage msg : messages) {
+                        // Security check: confirm current user is the recipient
+                        if (!msg.getRecipient().getId().equals(userId)) {
+                                continue;
+                        }
+
+                        // Idempotency: only update if not already seen
+                        if (msg.getSeenAt() == null) {
+                                msg.setSeenAt(now);
+                                // Consistency: if deliveredAt is missing, set it too
+                                if (msg.getDeliveredAt() == null) {
+                                        msg.setDeliveredAt(now);
+                                }
+                                anyUpdated = true;
+
+                                // Broadcast SEEN event individually
+                                java.util.Map<String, Object> payload = java.util.Map.of(
+                                                "type", "MESSAGE_SEEN",
+                                                "messageId", msg.getId(),
+                                                "seenAt", now);
+
+                                messagingTemplate.convertAndSendToUser(String.valueOf(msg.getSender().getId()),
+                                                "/queue/messages", payload);
+                                messagingTemplate.convertAndSendToUser(String.valueOf(msg.getRecipient().getId()),
+                                                "/queue/messages", payload);
+
+                                // Mark associated notifications as read
+                                notificationService.markChatNotificationsAsRead(msg.getRecipient().getId(),
+                                                msg.getSender().getId());
+                        }
+                }
+
+                if (anyUpdated) {
+                        chatMessageRepository.saveAll(messages);
+                }
+        }
+
+        @Transactional
+        public void markPendingMessagesAsDelivered(Long recipientId) {
+                List<ChatMessage> pendingMessages = chatMessageRepository
+                                .findByRecipient_IdAndDeliveredAtIsNull(recipientId);
+
+                if (pendingMessages.isEmpty()) {
+                        return;
+                }
+
+                Instant now = Instant.now(clock);
+                for (ChatMessage msg : pendingMessages) {
+                        msg.setDeliveredAt(now);
+
+                        // Broadcast DELIVERED event to sender
+                        java.util.Map<String, Object> payload = java.util.Map.of(
+                                        "type", "MESSAGE_DELIVERED",
+                                        "messageId", msg.getId(),
+                                        "deliveredAt", now);
+
+                        // Notify sender that their message was delivered
+                        messagingTemplate.convertAndSendToUser(
+                                        String.valueOf(msg.getSender().getId()),
+                                        "/queue/messages",
+                                        payload);
+
+                        // Also notify recipient (so their own UI updates if they have multiple devices)
+                        messagingTemplate.convertAndSendToUser(
+                                        String.valueOf(msg.getRecipient().getId()),
+                                        "/queue/messages",
+                                        payload);
+                }
+
+                chatMessageRepository.saveAll(pendingMessages);
         }
 
         // ==================== EDIT MESSAGE ====================
@@ -100,7 +201,7 @@ public class ChatService {
                 }
 
                 message.setContent(newContent);
-                message.setEditedAt(LocalDateTime.now());
+                message.setEditedAt(Instant.now(clock));
                 chatMessageRepository.save(message);
 
                 ChatMessageResponse response = toResponse(message);
@@ -239,6 +340,8 @@ public class ChatService {
                                 msg.isDeletedForSender(),
                                 msg.isDeletedForReceiver(),
                                 msg.isDeletedGlobally(),
+                                msg.getDeliveredAt(),
+                                msg.getSeenAt(),
                                 replyToId,
                                 replyToContent,
                                 replyToSenderName);

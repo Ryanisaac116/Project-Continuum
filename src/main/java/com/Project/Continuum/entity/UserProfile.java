@@ -1,7 +1,7 @@
 package com.Project.Continuum.entity;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "user_profiles")
@@ -28,36 +28,73 @@ public class UserProfile {
     private String teachingStyle;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        createdAt = Instant.now();
         updatedAt = createdAt;
     }
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = Instant.now();
     }
 
     // ===== getters =====
-    public Long getId() { return id; }
-    public User getUser() { return user; }
-    public String getHeadline() { return headline; }
-    public String getAbout() { return about; }
-    public String getLearningGoals() { return learningGoals; }
-    public String getTeachingStyle() { return teachingStyle; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public Long getId() {
+        return id;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public String getHeadline() {
+        return headline;
+    }
+
+    public String getAbout() {
+        return about;
+    }
+
+    public String getLearningGoals() {
+        return learningGoals;
+    }
+
+    public String getTeachingStyle() {
+        return teachingStyle;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
 
     // ===== setters =====
-    public void setUser(User user) { this.user = user; }
-    public void setHeadline(String headline) { this.headline = headline; }
-    public void setAbout(String about) { this.about = about; }
-    public void setLearningGoals(String learningGoals) { this.learningGoals = learningGoals; }
-    public void setTeachingStyle(String teachingStyle) { this.teachingStyle = teachingStyle; }
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public void setHeadline(String headline) {
+        this.headline = headline;
+    }
+
+    public void setAbout(String about) {
+        this.about = about;
+    }
+
+    public void setLearningGoals(String learningGoals) {
+        this.learningGoals = learningGoals;
+    }
+
+    public void setTeachingStyle(String teachingStyle) {
+        this.teachingStyle = teachingStyle;
+    }
 }

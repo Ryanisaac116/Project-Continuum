@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
  * Does strictly nothing. Requires no secrets.
  */
 @Service
-@Profile("dev")
+@Profile({ "dev", "test" })
 public class DevPushNotificationService implements PushNotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(DevPushNotificationService.class);

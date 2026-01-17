@@ -9,7 +9,8 @@ import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Clock;
+import java.time.Instant;
 
 @Service
 public class PresenceService {
@@ -17,13 +18,16 @@ public class PresenceService {
     private final UserRepository userRepository;
     private final SimpMessageSendingOperations messagingTemplate;
     private final com.Project.Continuum.store.PresenceStore presenceStore;
+    private final Clock clock;
 
     public PresenceService(UserRepository userRepository,
             SimpMessageSendingOperations messagingTemplate,
-            com.Project.Continuum.store.PresenceStore presenceStore) {
+            com.Project.Continuum.store.PresenceStore presenceStore,
+            Clock clock) {
         this.userRepository = userRepository;
         this.messagingTemplate = messagingTemplate;
         this.presenceStore = presenceStore;
+        this.clock = clock;
     }
 
     @Transactional
@@ -39,7 +43,7 @@ public class PresenceService {
         // Update DB
         user.setPresenceStatus(status);
         if (status == PresenceStatus.OFFLINE) {
-            user.setLastSeenAt(LocalDateTime.now());
+            user.setLastSeenAt(Instant.now(clock));
         }
 
         PresenceResponse response = new PresenceResponse(user.getId(), status, user.getLastSeenAt());
@@ -62,7 +66,7 @@ public class PresenceService {
         // We trust Store (in-memory is truth). DB might be stale if server crashed.
         // We need lastSeen from DB if Store is empty.
 
-        LocalDateTime lastSeenObj = presenceStore.getLastSeen(userId);
+        Instant lastSeenObj = presenceStore.getLastSeen(userId);
         if (lastSeenObj == null) {
             lastSeenObj = user.getLastSeenAt();
         }
@@ -90,11 +94,11 @@ public class PresenceService {
             presenceStore.setUserStatus(userId, PresenceStatus.ONLINE);
             user.setPresenceStatus(PresenceStatus.ONLINE);
 
-            PresenceResponse response = new PresenceResponse(user.getId(), PresenceStatus.ONLINE, LocalDateTime.now());
+            PresenceResponse response = new PresenceResponse(user.getId(), PresenceStatus.ONLINE, Instant.now(clock));
             messagingTemplate.convertAndSend("/topic/presence/" + userId, response);
         }
 
-        user.setLastSeenAt(LocalDateTime.now());
+        user.setLastSeenAt(Instant.now(clock));
     }
 
 }

@@ -306,9 +306,9 @@ export const RealTimeProvider = ({ children }) => {
         }
     }, [user, hasFetched, fetchAllData]);
 
-    // Setup WebSocket when authenticated and data is loaded
+    // Setup WebSocket immediately when authenticated
     useEffect(() => {
-        if (isAuthenticated && !isLoading && hasFetched) {
+        if (isAuthenticated) {
             setupWebSocket();
         }
 
@@ -316,7 +316,7 @@ export const RealTimeProvider = ({ children }) => {
             listenersRef.current.forEach(unsub => unsub?.());
             listenersRef.current = [];
         };
-    }, [isAuthenticated, isLoading, hasFetched, setupWebSocket]);
+    }, [isAuthenticated, setupWebSocket]);
 
     // Subscribe to presence when connected and have friends
     useEffect(() => {

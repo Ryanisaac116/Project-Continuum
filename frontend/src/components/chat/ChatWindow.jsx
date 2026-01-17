@@ -8,6 +8,10 @@ import {
     disconnectChatSocket,
     isChatConnected
 } from '../../ws/chatSocket';
+import { formatTime } from '../../utils/dateUtils';
+
+// ... (component code)
+
 
 /**
  * ChatWindow - Modal-style chat interface
@@ -132,6 +136,10 @@ const ChatWindow = ({ friend, currentUserId, onClose }) => {
                     ) : (
                         messages.map((msg) => {
                             const isMe = msg.senderId === currentUserId;
+                            const isDeleted = isMe ? msg.deletedForSender : msg.deletedForReceiver;
+                            const isDeletedGlobally = msg.deletedGlobally;
+                            if (isDeleted && !isDeletedGlobally) return null;
+
                             return (
                                 <div
                                     key={msg.id}
@@ -149,6 +157,35 @@ const ChatWindow = ({ friend, currentUserId, onClose }) => {
                                                 }`}
                                         >
                                             {formatTime(msg.sentAt)}
+                                            {/* Status Ticks */}
+                                            {isMe && !isDeleted && (
+                                                <span className="ml-1 inline-flex">
+                                                    {msg.seenAt ? (
+                                                        // Seen: Bright Cyan
+                                                        <span className="text-cyan-300 drop-shadow-sm" title={`Seen at ${formatTime(msg.seenAt)}`}>
+                                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <path d="M17 6L9.5 13.5L7 11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                                                <path d="M22 6L14.5 13.5L12 11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                                            </svg>
+                                                        </span>
+                                                    ) : msg.deliveredAt ? (
+                                                        // Delivered: Pure White
+                                                        <span className="text-white drop-shadow-sm" title={`Delivered at ${formatTime(msg.deliveredAt)}`}>
+                                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <path d="M17 6L9.5 13.5L7 11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                                                <path d="M22 6L14.5 13.5L12 11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                                            </svg>
+                                                        </span>
+                                                    ) : (
+                                                        // Sent: Faded Blue-White
+                                                        <span className="text-blue-200/60" title="Sent">
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                                            </svg>
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -185,14 +222,5 @@ const ChatWindow = ({ friend, currentUserId, onClose }) => {
         </div>
     );
 };
-
-/**
- * Format timestamp for display
- */
-function formatTime(timestamp) {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
 
 export default ChatWindow;

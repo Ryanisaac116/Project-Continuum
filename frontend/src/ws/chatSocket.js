@@ -135,7 +135,7 @@ const setupSubscriptions = () => {
         // Session events
         client.subscribe('/user/queue/session', (message) => {
             const data = JSON.parse(message.body);
-            console.log('[ChatSocket] Session event:', data);
+
 
             // Normalize event type (backend sends 'type' or 'event')
             const eventType = data.type || data.event;
@@ -154,7 +154,7 @@ const setupSubscriptions = () => {
         // Friend events
         client.subscribe('/user/queue/friends', (message) => {
             const data = JSON.parse(message.body);
-            console.log('[ChatSocket] Friend event:', data);
+
             emit('friend', data);
             if (onFriendEventCallback) onFriendEventCallback(data);
         });
@@ -162,7 +162,7 @@ const setupSubscriptions = () => {
         // Call events
         client.subscribe('/user/queue/calls', (message) => {
             const data = JSON.parse(message.body);
-            console.log('[ChatSocket] Call event:', data);
+
             emit('call', data);
             if (onCallEventCallback) onCallEventCallback(data);
         });
@@ -170,7 +170,7 @@ const setupSubscriptions = () => {
         // Notifications
         client.subscribe('/user/queue/notifications', (message) => {
             const data = JSON.parse(message.body);
-            console.log('[ChatSocket] Notification:', data);
+
             emit('notification', data);
             if (onNotificationCallback) onNotificationCallback(data);
         });
@@ -178,21 +178,21 @@ const setupSubscriptions = () => {
         // WebRTC Call Signaling
         client.subscribe('/user/queue/call-signal', (message) => {
             const data = JSON.parse(message.body);
-            console.log('[ChatSocket] Call signal:', data);
+
             emit('callSignal', data);
         });
 
         // Match events (from Matching Service)
         client.subscribe('/user/queue/match', (message) => {
             const data = JSON.parse(message.body);
-            console.log('[ChatSocket] Match event:', data);
+
             emit('match', data);
         });
 
         // Session events (Started, Ended)
         client.subscribe('/user/queue/session', (message) => {
             const data = JSON.parse(message.body);
-            console.log('[ChatSocket] Session event:', data);
+
             emit('session', data);
         });
 
@@ -263,7 +263,7 @@ export const connectChatSocket = (token, onMessage, onConnected, onError) => {
     }
 
     const wsUrl = getWsUrl(token);
-    console.log('[ChatSocket] Connecting to:', wsUrl);
+
 
     client = new Client({
         brokerURL: wsUrl,
@@ -281,7 +281,7 @@ export const connectChatSocket = (token, onMessage, onConnected, onError) => {
     client.onConnect = () => {
         connected = true;
         reconnectAttempts = 0;
-        console.log('[ChatSocket] ✅ Connected');
+
 
         setupSubscriptions();
         notifyConnectionChange(true);
@@ -290,13 +290,13 @@ export const connectChatSocket = (token, onMessage, onConnected, onError) => {
 
     client.onDisconnect = () => {
         connected = false;
-        console.log('[ChatSocket] ❌ Disconnected');
+
         notifyConnectionChange(false);
     };
 
     client.onWebSocketClose = () => {
         connected = false;
-        console.log('[ChatSocket] 🔌 WebSocket closed, will reconnect...');
+
         notifyConnectionChange(false);
         connectionCallbacks.onError?.('Disconnected');
     };
@@ -426,7 +426,7 @@ export const isChatConnected = () => connected;
  */
 export const forceReconnect = () => {
     if (client) {
-        console.log('[ChatSocket] Force reconnecting...');
+
         client.deactivate();
         setTimeout(() => {
             client.activate();

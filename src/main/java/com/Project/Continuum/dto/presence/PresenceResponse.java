@@ -2,15 +2,15 @@ package com.Project.Continuum.dto.presence;
 
 import com.Project.Continuum.enums.PresenceStatus;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public class PresenceResponse {
 
     private Long userId;
     private PresenceStatus status;
-    private LocalDateTime lastSeenAt;
+    private Instant lastSeenAt;
 
-    public PresenceResponse(Long userId, PresenceStatus status, LocalDateTime lastSeenAt) {
+    public PresenceResponse(Long userId, PresenceStatus status, Instant lastSeenAt) {
         this.userId = userId;
         this.status = status;
         this.lastSeenAt = lastSeenAt;
@@ -24,7 +24,7 @@ public class PresenceResponse {
         return status;
     }
 
-    public LocalDateTime getLastSeenAt() {
+    public Instant getLastSeenAt() {
         return lastSeenAt;
     }
 }

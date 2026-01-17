@@ -19,6 +19,10 @@ const chatApi = {
     // Clear all messages in a chat (soft delete for me only)
     clearChat: (friendId) =>
         apiClient.delete(`/chat/clear/${friendId}`),
+
+    // Mark messages as seen
+    markMessagesSeen: (messageIds) =>
+        apiClient.post('/chat/messages/seen', { messageIds }),
 };
 
 export default chatApi;

@@ -16,7 +16,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,18 +48,21 @@ public class CallTimeoutScheduler {
     private final ExchangeSessionService exchangeSessionService;
     private final NotificationService notificationService;
     private final SimpMessageSendingOperations messagingTemplate;
+    private final Clock clock;
 
     public CallTimeoutScheduler(
             CallSessionRepository callSessionRepository,
             CallStateStore callStateStore,
             ExchangeSessionService exchangeSessionService,
             NotificationService notificationService,
-            SimpMessageSendingOperations messagingTemplate) {
+            SimpMessageSendingOperations messagingTemplate,
+            Clock clock) {
         this.callSessionRepository = callSessionRepository;
         this.callStateStore = callStateStore;
         this.exchangeSessionService = exchangeSessionService;
         this.notificationService = notificationService;
         this.messagingTemplate = messagingTemplate;
+        this.clock = clock;
     }
 
     // ==================== STARTUP CLEANUP ====================
@@ -97,7 +102,7 @@ public class CallTimeoutScheduler {
     @Scheduled(fixedRate = 5000) // Every 5 seconds
     @Transactional
     public void expireRingingCalls() {
-        LocalDateTime cutoff = LocalDateTime.now().minusSeconds(RINGING_TIMEOUT_SECONDS);
+        Instant cutoff = Instant.now(clock).minus(RINGING_TIMEOUT_SECONDS, ChronoUnit.SECONDS);
 
         List<CallSession> timedOutCalls = callSessionRepository.findAll().stream()
                 .filter(c -> c.getStatus() == CallStatus.RINGING)
@@ -113,7 +118,7 @@ public class CallTimeoutScheduler {
         log.info("⏰ Expiring timed out RINGING call: callId={}", call.getId());
 
         call.setStatus(CallStatus.ENDED);
-        call.setEndedAt(LocalDateTime.now());
+        call.setEndedAt(Instant.now(clock));
         call.setEndReason(CallEndReason.TIMEOUT);
         callSessionRepository.save(call);
 
@@ -141,13 +146,13 @@ public class CallTimeoutScheduler {
     @Scheduled(fixedRate = 60000) // Every 60 seconds
     @Transactional
     public void expireStaleAcceptedCalls() {
-        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(ACCEPTED_TIMEOUT_MINUTES);
+        Instant cutoff = Instant.now(clock).minus(ACCEPTED_TIMEOUT_MINUTES, ChronoUnit.MINUTES);
 
         List<CallSession> staleCalls = callSessionRepository.findAll().stream()
                 .filter(c -> c.getStatus() == CallStatus.ACCEPTED)
                 .filter(c -> {
                     // Check if accepted too long ago
-                    LocalDateTime acceptedAt = c.getAcceptedAt();
+                    Instant acceptedAt = c.getAcceptedAt();
                     return acceptedAt != null && acceptedAt.isBefore(cutoff);
                 })
                 .toList();
@@ -168,7 +173,7 @@ public class CallTimeoutScheduler {
     @Scheduled(fixedRate = 300000) // Every 5 minutes
     @Transactional
     public void forceCleanAncientCalls() {
-        LocalDateTime cutoff = LocalDateTime.now().minusHours(STALE_CALL_HOURS);
+        Instant cutoff = Instant.now(clock).minus(STALE_CALL_HOURS, ChronoUnit.HOURS);
 
         List<CallSession> ancientCalls = callSessionRepository.findAll().stream()
                 .filter(c -> c.getStatus() == CallStatus.RINGING || c.getStatus() == CallStatus.ACCEPTED)
@@ -186,7 +191,7 @@ public class CallTimeoutScheduler {
 
     private void endStaleCall(CallSession call, CallEndReason reason, String logReason) {
         call.setStatus(CallStatus.ENDED);
-        call.setEndedAt(LocalDateTime.now());
+        call.setEndedAt(Instant.now(clock));
         call.setEndReason(reason);
         callSessionRepository.save(call);
 

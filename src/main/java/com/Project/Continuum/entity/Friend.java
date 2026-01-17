@@ -2,7 +2,7 @@ package com.Project.Continuum.entity;
 
 import com.Project.Continuum.enums.FriendSource;
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "friends", uniqueConstraints = {
@@ -35,11 +35,11 @@ public class Friend {
     private com.Project.Continuum.enums.FriendStatus status = com.Project.Continuum.enums.FriendStatus.PENDING;
 
     @Column(name = "connected_at", nullable = false, updatable = false)
-    private LocalDateTime connectedAt;
+    private Instant connectedAt;
 
     @PrePersist
     protected void onCreate() {
-        connectedAt = LocalDateTime.now();
+        connectedAt = Instant.now();
     }
 
     public Long getId() {
@@ -66,7 +66,7 @@ public class Friend {
         return status;
     }
 
-    public LocalDateTime getConnectedAt() {
+    public Instant getConnectedAt() {
         return connectedAt;
     }
 

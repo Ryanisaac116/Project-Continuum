@@ -19,20 +19,20 @@ let onErrorCallback = null;
  * Connect to matching WebSocket
  */
 export const connectMatchingSocket = (token, onMessage, onConnected, onError) => {
-    console.log('[MatchingSocket] Connecting...');
+
 
     messageCallback = onMessage;
     onConnectedCallback = onConnected;
     onErrorCallback = onError;
 
     if (client && connected) {
-        console.log('[MatchingSocket] Already connected');
+
         if (onConnected) onConnected();
         return;
     }
 
     const wsUrl = getWsUrl(token);
-    console.log('[MatchingSocket] WebSocket URL:', wsUrl);
+
 
     client = new Client({
         brokerURL: wsUrl,
@@ -41,7 +41,7 @@ export const connectMatchingSocket = (token, onMessage, onConnected, onError) =>
         },
         debug: (str) => {
             if (str.includes('ERROR') || str.includes('CONNECTED')) {
-                console.log('[MatchingSocket] STOMP:', str);
+
             }
         },
         reconnectDelay: 5000,
@@ -49,14 +49,14 @@ export const connectMatchingSocket = (token, onMessage, onConnected, onError) =>
         heartbeatOutgoing: 4000,
 
         onConnect: () => {
-            console.log('[MatchingSocket] Connected');
+
             connected = true;
 
             // Subscribe to matching events
             subscription = client.subscribe('/user/queue/match', (message) => {
                 try {
                     const data = JSON.parse(message.body);
-                    console.log('[MatchingSocket] Event received:', data);
+
                     if (messageCallback) {
                         messageCallback(data);
                     }
@@ -79,7 +79,7 @@ export const connectMatchingSocket = (token, onMessage, onConnected, onError) =>
         },
 
         onWebSocketClose: () => {
-            console.log('[MatchingSocket] WebSocket closed');
+
             connected = false;
         },
 
@@ -99,7 +99,7 @@ export const connectMatchingSocket = (token, onMessage, onConnected, onError) =>
  * Disconnect from matching WebSocket
  */
 export const disconnectMatchingSocket = () => {
-    console.log('[MatchingSocket] Disconnecting...');
+
 
     if (subscription) {
         try {
@@ -134,7 +134,7 @@ export const joinMatching = (intent) => {
         return;
     }
 
-    console.log('[MatchingSocket] Joining with intent:', intent);
+
 
     client.publish({
         destination: '/app/matching.join',
@@ -151,7 +151,7 @@ export const leaveMatching = () => {
         return;
     }
 
-    console.log('[MatchingSocket] Leaving queue');
+
 
     client.publish({
         destination: '/app/matching.leave',

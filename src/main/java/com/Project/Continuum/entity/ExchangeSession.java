@@ -3,15 +3,12 @@ package com.Project.Continuum.entity;
 import com.Project.Continuum.enums.ExchangeIntent;
 import com.Project.Continuum.enums.ExchangeStatus;
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
-@Table(
-        name = "exchange_sessions",
-        uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"request_id"})
-        }
-)
+@Table(name = "exchange_sessions", uniqueConstraints = {
+        @UniqueConstraint(columnNames = { "request_id" })
+})
 public class ExchangeSession {
 
     @Id
@@ -40,41 +37,87 @@ public class ExchangeSession {
     private ExchangeStatus status = ExchangeStatus.REQUESTED;
 
     @Column(name = "started_at")
-    private LocalDateTime startedAt;
+    private Instant startedAt;
 
     @Column(name = "ended_at")
-    private LocalDateTime endedAt;
+    private Instant endedAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
         if (this.status == null) {
             this.status = ExchangeStatus.REQUESTED;
         }
     }
 
     // ===== GETTERS =====
-    public Long getId() { return id; }
-    public SkillExchangeRequest getRequest() { return request; }
-    public User getUserA() { return userA; }
-    public User getUserB() { return userB; }
-    public ExchangeIntent getIntent() { return intent; }
-    public ExchangeStatus getStatus() { return status; }
-    public LocalDateTime getStartedAt() { return startedAt; }
-    public LocalDateTime getEndedAt() { return endedAt; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
+    public Long getId() {
+        return id;
+    }
+
+    public SkillExchangeRequest getRequest() {
+        return request;
+    }
+
+    public User getUserA() {
+        return userA;
+    }
+
+    public User getUserB() {
+        return userB;
+    }
+
+    public ExchangeIntent getIntent() {
+        return intent;
+    }
+
+    public ExchangeStatus getStatus() {
+        return status;
+    }
+
+    public Instant getStartedAt() {
+        return startedAt;
+    }
+
+    public Instant getEndedAt() {
+        return endedAt;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
 
     // ===== SETTERS =====
-    public void setRequest(SkillExchangeRequest request) { this.request = request; }
-    public void setUserA(User userA) { this.userA = userA; }
-    public void setUserB(User userB) { this.userB = userB; }
-    public void setIntent(ExchangeIntent intent) { this.intent = intent; }
-    public void setStatus(ExchangeStatus status) { this.status = status; }
-    public void setStartedAt(LocalDateTime startedAt) { this.startedAt = startedAt; }
-    public void setEndedAt(LocalDateTime endedAt) { this.endedAt = endedAt; }
+    public void setRequest(SkillExchangeRequest request) {
+        this.request = request;
+    }
+
+    public void setUserA(User userA) {
+        this.userA = userA;
+    }
+
+    public void setUserB(User userB) {
+        this.userB = userB;
+    }
+
+    public void setIntent(ExchangeIntent intent) {
+        this.intent = intent;
+    }
+
+    public void setStatus(ExchangeStatus status) {
+        this.status = status;
+    }
+
+    public void setStartedAt(Instant startedAt) {
+        this.startedAt = startedAt;
+    }
+
+    public void setEndedAt(Instant endedAt) {
+        this.endedAt = endedAt;
+    }
 
     // ===== DOMAIN HELPERS =====
     public boolean isParticipant(Long userId) {

@@ -1,7 +1,7 @@
 package com.Project.Continuum.dto.friend;
 
 import com.Project.Continuum.enums.PresenceStatus;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * DTO for recently met users from completed exchange sessions
@@ -10,9 +10,9 @@ public class RecentlyMetResponse {
     private Long userId;
     private String name;
     private PresenceStatus presence;
-    private LocalDateTime lastSessionAt;
+    private Instant lastSessionAt;
 
-    public RecentlyMetResponse(Long userId, String name, PresenceStatus presence, LocalDateTime lastSessionAt) {
+    public RecentlyMetResponse(Long userId, String name, PresenceStatus presence, Instant lastSessionAt) {
         this.userId = userId;
         this.name = name;
         this.presence = presence;
@@ -31,7 +31,7 @@ public class RecentlyMetResponse {
         return presence;
     }
 
-    public LocalDateTime getLastSessionAt() {
+    public Instant getLastSessionAt() {
         return lastSessionAt;
     }
 }
