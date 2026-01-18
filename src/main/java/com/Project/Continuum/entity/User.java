@@ -22,20 +22,20 @@ public class User {
     private String bio;
 
     @Column(name = "is_active", nullable = false)
-    private Boolean isActive = true;
+    private boolean isActive = true;
 
-    @Column(name = "created_at", nullable = true, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "auth_provider", nullable = true)
+    @Column(name = "auth_provider", nullable = false)
     private AuthProvider authProvider;
 
-    @Column(name = "provider_user_id", nullable = true)
+    @Column(name = "provider_user_id", nullable = false)
     private String providerUserId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "presence_status", nullable = true)
+    @Column(name = "presence_status", nullable = false)
     private PresenceStatus presenceStatus = PresenceStatus.OFFLINE;
 
     @Column(name = "last_seen_at")
@@ -60,7 +60,7 @@ public class User {
         return bio;
     }
 
-    public Boolean isActive() {
+    public boolean isActive() {
         return isActive;
     }
 
@@ -97,7 +97,7 @@ public class User {
         this.bio = bio;
     }
 
-    public void setActive(Boolean active) {
+    public void setActive(boolean active) {
         this.isActive = active;
     }
 

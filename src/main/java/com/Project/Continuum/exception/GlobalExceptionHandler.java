@@ -68,12 +68,8 @@ public class GlobalExceptionHandler {
         public ResponseEntity<ErrorResponse> handleGenericException(
                         Exception ex) {
 
-                // LOG THE STACK TRACE so we can see it in Render
-                ex.printStackTrace(); // or use a Logger
-
                 ErrorResponse error = new ErrorResponse(
-                                "Internal server error: " + ex.getMessage(), // Include partial message for easier
-                                                                             // debugging
+                                "Internal server error",
                                 HttpStatus.INTERNAL_SERVER_ERROR.value());
 
                 return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);

@@ -48,10 +48,3 @@ google:
   redirect:
     uri: ${GOOGLE_REDIRECT_URI}
 
-logging:
-  level:
-    root: INFO
-    com.Project.Continuum: DEBUG
-    org.springframework.security: DEBUG
-    org.springframework.web: DEBUG
-    org.hibernate.SQL: DEBUG
