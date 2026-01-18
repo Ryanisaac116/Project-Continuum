@@ -9,8 +9,6 @@ const AuthSuccess = () => {
     useEffect(() => {
         const token = new URLSearchParams(window.location.search).get("token");
 
-        console.log("OAuth token:", token); // TEMP DEBUG
-
         if (token) {
             // Explicitly store token first as requested
             localStorage.setItem("token", token);
