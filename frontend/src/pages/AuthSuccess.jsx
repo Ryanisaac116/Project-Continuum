@@ -1,34 +1,32 @@
 import React, { useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
 const AuthSuccess = () => {
-    const [searchParams] = useSearchParams();
     const { handleOAuthLogin } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
-        const token = searchParams.get('token');
+        const token = new URLSearchParams(window.location.search).get("token");
+
         if (token) {
+            // Use handleOAuthLogin to ensure state is updated before redirecting
             handleOAuthLogin(token)
                 .then(() => {
-                    navigate('/app');
+                    navigate('/app', { replace: true });
                 })
                 .catch((err) => {
                     console.error('OAuth login failed:', err);
-                    navigate('/login?error=oauth_failed');
+                    navigate('/login', { replace: true });
                 });
         } else {
-            navigate('/login');
+            navigate('/login', { replace: true });
         }
-    }, [searchParams, handleOAuthLogin, navigate]);
+    }, [handleOAuthLogin, navigate]);
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-black">
-            <div className="text-center">
-                <h2 className="text-xl font-semibold mb-2">Signing you in...</h2>
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            </div>
+            <p className="text-xl font-semibold">Signing you in...</p>
         </div>
     );
 };
