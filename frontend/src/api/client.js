@@ -37,11 +37,25 @@ export const clearAuthState = () => {
  * @returns {string} Full WebSocket URL
  */
 export const getWsUrl = (token) => {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = window.location.hostname;
-  const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
-  // Use same port as current page (Vite proxy handles /ws)
-  return `${protocol}//${host}:${port}/ws?token=${token}`;
+  // Use API_BASE_URL to determine the WebSocket backend
+  // API_BASE_URL example: "https://project-continuum.onrender.com/api" or "/api"
+
+  let wsUrl;
+
+  if (API_BASE_URL.startsWith('http')) {
+    // Production / Full URL case
+    const url = new URL(API_BASE_URL);
+    const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    wsUrl = `${protocol}//${url.host}/ws`;
+  } else {
+    // Development / Relative Proxy case (e.g. "/api")
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname;
+    const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+    wsUrl = `${protocol}//${host}:${port}/ws`;
+  }
+
+  return `${wsUrl}?token=${token}`;
 };
 
 // =============================================================================
