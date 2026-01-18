@@ -24,7 +24,7 @@ public class User {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = true, updatable = false)
     private Instant createdAt;
 
     @Enumerated(EnumType.STRING)
@@ -35,7 +35,7 @@ public class User {
     private String providerUserId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "presence_status", nullable = false)
+    @Column(name = "presence_status", nullable = true)
     private PresenceStatus presenceStatus = PresenceStatus.OFFLINE;
 
     @Column(name = "last_seen_at")

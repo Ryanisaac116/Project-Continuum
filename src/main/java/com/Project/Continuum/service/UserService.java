@@ -18,9 +18,10 @@ public class UserService {
 
     // 🔹 GET CURRENT USER
     public UserResponse getUser(Long userId) {
-
+        System.out.println("[UserService] Getting user " + userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        System.out.println("[UserService] Found user: " + user.getId());
 
         return mapToResponse(user);
     }
