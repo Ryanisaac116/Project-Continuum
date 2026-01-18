@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
-@Profile({ "prod", "dev" })
 public class AuthController {
 
     private final GoogleAuthService googleAuthService;
