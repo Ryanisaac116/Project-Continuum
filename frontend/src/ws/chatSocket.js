@@ -34,7 +34,8 @@ const listeners = {
     callSignal: new Set(),
     presence: new Map(),
     connectionChange: new Set(), // NEW: listen to connection state changes
-    match: new Set() // NEW: listen to match events
+    match: new Set(), // NEW: listen to match events
+    session: new Set(), // NEW: listen to session events
 };
 
 /**

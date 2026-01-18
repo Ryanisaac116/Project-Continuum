@@ -14,8 +14,11 @@ const ProtectedRoute = ({ children, noLayout = false }) => {
   }
 
   if (!user) {
+    console.warn('[ProtectedRoute] No user found, redirecting to login');
     return <Navigate to="/login" replace />;
   }
+
+  console.log('[ProtectedRoute] Access granted to:', user.id);
 
   // Skip layout for pages with custom layouts (e.g., ChatPage)
   if (noLayout) {
