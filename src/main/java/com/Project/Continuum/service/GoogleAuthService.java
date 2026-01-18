@@ -20,7 +20,7 @@ import org.springframework.web.client.RestTemplate;
 import java.util.Optional;
 
 @Service
-@Profile("prod")
+@Profile({ "prod", "dev" })
 public class GoogleAuthService {
 
     private static final Logger log = LoggerFactory.getLogger(GoogleAuthService.class);
@@ -42,6 +42,16 @@ public class GoogleAuthService {
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
         this.restTemplate = new RestTemplate();
+    }
+
+    public String generateAuthorizationUrl() {
+        return "https://accounts.google.com/o/oauth2/v2/auth" +
+                "?client_id=" + clientId +
+                "&redirect_uri=" + redirectUri +
+                "&response_type=code" +
+                "&scope=openid%20email%20profile" +
+                "&access_type=offline" +
+                "&prompt=consent";
     }
 
     public String processCallback(String code) {
