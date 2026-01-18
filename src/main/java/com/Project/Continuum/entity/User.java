@@ -28,10 +28,10 @@ public class User {
     private Instant createdAt;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "auth_provider", nullable = false)
+    @Column(name = "auth_provider", nullable = true)
     private AuthProvider authProvider;
 
-    @Column(name = "provider_user_id", nullable = false)
+    @Column(name = "provider_user_id", nullable = true)
     private String providerUserId;
 
     @Enumerated(EnumType.STRING)
