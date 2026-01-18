@@ -3,6 +3,19 @@ spring:
     activate:
       on-profile: dev
 
+  datasource:
+    url: jdbc:postgresql://localhost:5432/continuum
+    username: postgres
+    password: pg/1234
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: true
+
 # ===============================
 # JWT CONFIG (DEV ONLY)
 # ===============================
