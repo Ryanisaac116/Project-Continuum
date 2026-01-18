@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { RealTimeProvider } from './context/RealTimeContext';
@@ -23,9 +23,13 @@ import AuthSuccess from './pages/AuthSuccess';
    ====================== */
 function AppContent() {
   // Tab-aware presence: ONLINE when focused, OFFLINE when hidden
+  // Tab-aware presence: ONLINE when focused, OFFLINE when hidden
   useTabPresence();
 
+  const location = useLocation();
   const { user } = useAuth();
+
+  console.log('[AppContent] Current Path:', location.pathname, 'User:', user ? user.id : 'null');
 
   return (
     <>
