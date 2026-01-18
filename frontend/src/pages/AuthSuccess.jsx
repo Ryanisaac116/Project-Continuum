@@ -14,12 +14,14 @@ const AuthSuccess = () => {
             localStorage.setItem("token", token);
 
             // Use handleOAuthLogin to ensure state is updated before redirecting
+            console.log('[AuthSuccess] Token found, initiating login...');
             handleOAuthLogin(token)
-                .then(() => {
+                .then((user) => {
+                    console.log('[AuthSuccess] Login successful! Navigating to /app. User:', user);
                     navigate('/app', { replace: true });
                 })
                 .catch((err) => {
-                    console.error('OAuth login failed:', err);
+                    console.error('[AuthSuccess] OAuth login failed explicitly:', err);
                     navigate('/login', { replace: true });
                 });
         } else {
