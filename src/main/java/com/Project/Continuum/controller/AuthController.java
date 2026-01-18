@@ -19,7 +19,7 @@ public class AuthController {
         this.googleAuthService = googleAuthService;
     }
 
-    @org.springframework.beans.factory.annotation.Value("${spring.frontend-url}")
+    @org.springframework.beans.factory.annotation.Value("${spring.frontend-url:http://localhost:5173}")
     private String frontendUrl;
 
     @GetMapping("/google/callback")
