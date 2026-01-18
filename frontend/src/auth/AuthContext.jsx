@@ -76,7 +76,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // 🌐 OAUTH LOGIN (Token based)
-  const handleOAuthLogin = async (token) => {
+  const handleOAuthLogin = useCallback(async (token) => {
     try {
       // 1. Store token
       localStorage.setItem('token', token);
@@ -97,7 +97,7 @@ export const AuthProvider = ({ children }) => {
       clearAuthState();
       throw err;
     }
-  };
+  }, []);
 
   const logout = async () => {
     try {
