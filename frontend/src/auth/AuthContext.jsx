@@ -35,10 +35,8 @@ export const AuthProvider = ({ children }) => {
 
   // 🔄 Update local user presence (called by useTabPresence)
   const updateUserPresence = useCallback((status) => {
-    console.log('[AuthContext] updateUserPresence called with:', status);
     setUser(prev => {
       if (!prev) return null;
-      console.log('[AuthContext] Updating user presence from', prev.presenceStatus, 'to', status);
       return { ...prev, presenceStatus: status };
     });
   }, []);
