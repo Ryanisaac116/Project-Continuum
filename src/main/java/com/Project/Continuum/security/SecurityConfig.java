@@ -56,14 +56,15 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Allow localhost and the production frontend
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:5173",
-                frontendUrl,
-                "https://continuum-app.onrender.com"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        // Use patterns to allow for http/https and slight variations
+        configuration.setAllowedOriginPatterns(List.of(
+                "http://localhost:*",
+                "https://*.onrender.com",
+                frontendUrl));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Content-Length"));
         configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

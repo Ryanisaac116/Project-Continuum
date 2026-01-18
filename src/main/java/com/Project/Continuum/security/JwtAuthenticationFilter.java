@@ -68,12 +68,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     // Session mismatch = user logged in from another device
                     if (dbSessionToken == null || !dbSessionToken.equals(jwtSessionToken)) {
+                        System.out.println("[JwtFilter] Session mismatch for user " + userId);
                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                         response.setContentType("application/json");
                         response.getWriter().write(
                                 "{\"error\":\"session_invalidated\",\"message\":\"Session invalid. Please log in again.\"}");
                         return;
                     }
+                } else {
+                    System.out.println("[JwtFilter] User not found for ID: " + userId);
                 }
             }
 
@@ -85,6 +88,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
         } catch (Exception e) {
+            System.out.println("[JwtFilter] Token validation failed: " + e.getMessage());
             SecurityContextHolder.clearContext();
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return;
