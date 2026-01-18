@@ -16,6 +16,10 @@ spring:
 
   devtools:
     add-properties: false
+  
+  server:
+    port: ${PORT:8080}
+
 
 
 # ===============================
