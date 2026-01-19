@@ -151,6 +151,11 @@ export function useWebRTC(callId, isCaller, remoteUserId) {
         const iAmCaller = isCallerRef.current;
         const myRole = iAmCaller ? 'CALLER' : 'RECEIVER';
 
+        // Log everything except ICE candidates to reduce noise
+        if (msg.type !== 'ICE_CANDIDATE') {
+            console.log(`[useWebRTC][${myRole}] Received signal: ${msg.type}`, msg);
+        }
+
         const payload = typeof msg.payload === 'string' ? JSON.parse(msg.payload) : msg.payload;
 
         try {
@@ -295,7 +300,14 @@ export function useWebRTC(callId, isCaller, remoteUserId) {
 
         } catch (err) {
             console.error(`[CALLER] Start error:`, err);
-            setError(err.message);
+            // More descriptive error for user
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                setError('Microphone permission denied. Please allow access.');
+            } else if (err.name === 'NotFoundError') {
+                setError('No microphone found.');
+            } else {
+                setError(`Call setup failed: ${err.message}`);
+            }
             hasStartedRef.current = false;
         }
     }, []);
