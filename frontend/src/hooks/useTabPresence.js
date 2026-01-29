@@ -6,7 +6,7 @@ import presenceApi from '../api/presence';
  * useTabPresence - Tab-aware presence hook
  * Calls /presence API only when visibility changes
  */
-export function useTabPresence() {
+export function useTabPresence(shouldRemainOnline = false) {
     const { user, updateUserPresence } = useAuth();
     const lastStatusRef = useRef(null);
     const pendingRef = useRef(false);
@@ -20,17 +20,18 @@ export function useTabPresence() {
         mountedRef.current = true;
 
         const updatePresence = async (isActive) => {
-            const newStatus = isActive ? 'ONLINE' : 'OFFLINE';
+            // FORCE ONLINE if shouldRemainOnline is true (e.g. active call)
+            const newStatus = (isActive || shouldRemainOnline) ? 'ONLINE' : 'OFFLINE';
 
             // Skip if same status or request pending
             if (lastStatusRef.current === newStatus || pendingRef.current) return;
 
-            console.log('[useTabPresence] Updating presence to:', newStatus);
+            console.log('[useTabPresence] Updating presence to:', newStatus, '(Override:', shouldRemainOnline, ')');
             pendingRef.current = true;
             lastStatusRef.current = newStatus;
 
             try {
-                if (isActive) {
+                if (newStatus === 'ONLINE') {
                     await presenceApi.markOnline();
                 } else {
                     await presenceApi.markOffline();
@@ -54,7 +55,7 @@ export function useTabPresence() {
 
         // Heartbeat: Ping server every 30s to stay ONLINE while visible
         const heartbeatInterval = setInterval(() => {
-            if (document.visibilityState === 'visible') {
+            if (document.visibilityState === 'visible' || shouldRemainOnline) {
                 presenceApi.heartbeat().catch(() => { });
             }
         }, 30000);
@@ -66,7 +67,7 @@ export function useTabPresence() {
             document.removeEventListener('visibilitychange', handleVisibility);
             mountedRef.current = false;
         };
-    }, [user?.id, updateUserPresence]); // Only run when user ID changes
+    }, [user?.id, updateUserPresence, shouldRemainOnline]); // Only run when user ID or override changes
 }
 
 export default useTabPresence;

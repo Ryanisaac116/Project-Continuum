@@ -12,7 +12,7 @@ import {
     disconnectChatSocket,
     isChatConnected,
     subscribeToPresence,
-    updateMessageCallback
+    addListener
 } from '../ws/chatSocket';
 
 // Icons
@@ -302,10 +302,12 @@ const ChatPage = () => {
         init();
     }, [friendId, handleIncomingMessage]);
 
-    // Keep WebSocket callback in sync when friendId changes
+    // Keep WebSocket listener in sync using robust addListener pattern
     useEffect(() => {
         if (socketConnected) {
-            updateMessageCallback(handleIncomingMessage);
+            // Use addListener instead of updateMessageCallback to avoid overwriting other listeners
+            const unsubscribe = addListener('message', handleIncomingMessage);
+            return () => unsubscribe();
         }
     }, [handleIncomingMessage, socketConnected]);
 

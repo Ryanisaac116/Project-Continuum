@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { updateNotificationCallback } from '../ws/chatSocket';
+import { addListener } from '../ws/chatSocket';
 import apiClient, { getToken } from '../api/client';
 
 const NotificationContext = createContext(null);
@@ -97,8 +97,8 @@ export const NotificationProvider = ({ children }) => {
 
     // Register WebSocket callback
     useEffect(() => {
-        updateNotificationCallback(handleNotification);
-        return () => updateNotificationCallback(null);
+        const unsubscribe = addListener('notification', handleNotification);
+        return () => unsubscribe();
     }, [handleNotification]);
 
     // Mark single notification as read
@@ -140,6 +140,15 @@ export const NotificationProvider = ({ children }) => {
         setToasts((prev) => prev.filter((t) => t.toastId !== toastId));
     };
 
+    // Manual toast trigger
+    const addToast = useCallback((title, message, type = 'INFO') => {
+        const toastId = Date.now();
+        setToasts((prev) => [...prev, { id: toastId, toastId, title, message, type: 'MANUAL', manualType: type }]);
+        setTimeout(() => {
+            setToasts((prev) => prev.filter((t) => t.toastId !== toastId));
+        }, 5000);
+    }, []);
+
     const value = {
         notifications,
         unreadCount,
@@ -148,6 +157,7 @@ export const NotificationProvider = ({ children }) => {
         markAllAsRead,
         clearAllNotifications,
         dismissToast,
+        addToast,
     };
 
     return (

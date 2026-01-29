@@ -70,6 +70,32 @@ public class CallController {
     // ==================== CALL LIFECYCLE ====================
 
     /**
+     * Get active call for current user (if any)
+     */
+    @GetMapping("/active")
+    public ResponseEntity<Map<String, Object>> getActiveCall() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        CallSession call = callService.getActiveCall(userId);
+
+        if (call == null) {
+            return ResponseEntity.ok(null); // No active call
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "callId", call.getId(),
+                "callType", call.getCallType().name(),
+                "status", call.getStatus().name(),
+                "isCaller", call.getCaller().getId().equals(userId),
+                "remoteUserId", call.getCaller().getId().equals(userId) ? call.getReceiver().getId()
+                        : call.getCaller().getId(),
+                "remoteUserName",
+                call.getCaller().getId().equals(userId) ? call.getReceiver().getName() : call.getCaller().getName(),
+                "exchangeSessionId", call.getExchangeSession() != null
+                        ? call.getExchangeSession().getId()
+                        : ""));
+    }
+
+    /**
      * Accept an incoming call
      */
     @PostMapping("/{callId}/accept")

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { updateCallEventCallback, onConnectionChange } from '../ws/chatSocket';
+import { useCall } from '../context/CallContext';
 import { useWebRTC } from '../hooks/useWebRTC';
 import apiClient from '../api/client';
 
@@ -8,79 +8,7 @@ import apiClient from '../api/client';
  * Phase 6: Now with WebRTC audio
  */
 const CallOverlay = ({ userId }) => {
-    const [callState, setCallState] = useState(null);
-    // callState: { type: 'incoming' | 'outgoing' | 'active', callId, sessionId?, callerId?, callerName?, receiverId?, receiverName? }
-
-    const handleCallEvent = useCallback((data) => {
-        console.log('[CallOverlay] Event:', data);
-
-        switch (data.event) {
-            case 'CALL_INITIATE':
-                // Incoming call
-                setCallState({
-                    type: 'incoming',
-                    callId: data.callId,
-                    sessionId: data.sessionId,
-                    callerId: data.callerId,
-                    callerName: data.callerName
-                });
-                break;
-
-            case 'CALL_RINGING':
-                // Confirmation of outgoing call
-                setCallState({
-                    type: 'outgoing',
-                    callId: data.callId,
-                    sessionId: data.sessionId,
-                    receiverId: data.receiverId,
-                    receiverName: data.receiverName
-                });
-                break;
-
-            case 'CALL_ACCEPT':
-                // Call accepted - transition to active
-                setCallState((prev) => prev ? {
-                    ...prev,
-                    type: 'active'
-                } : null);
-                break;
-
-            case 'CALL_REJECT':
-            case 'CALL_END':
-                // Check if ended due to disconnect
-                if (data.endReason === 'DISCONNECTED') {
-                    // Show global toast or alert (using alert for now as a simple fallback)
-                    // In a real app we'd use a toast context
-                    setTimeout(() => alert('Call ended due to connection loss.'), 100);
-                }
-                setCallState(null);
-                break;
-
-            default:
-                break;
-        }
-    }, []);
-
-    // Connection state monitoring
-    const [isConnected, setIsConnected] = useState(true);
-
-    useEffect(() => {
-        // Subscribe to connection changes
-        const unsubscribe = onConnectionChange((connected) => {
-            setIsConnected(connected);
-            if (!connected && callState?.type === 'active') {
-                console.warn('[CallOverlay] Connection lost during active call');
-            }
-        });
-        return unsubscribe;
-    }, [callState?.type]);
-
-    useEffect(() => {
-        updateCallEventCallback(handleCallEvent);
-        return () => updateCallEventCallback(null);
-    }, [handleCallEvent]);
-
-    // ... handlers ...
+    const { callState, isConnected, acceptCall, rejectCall, endCall } = useCall();
 
     // Reconnecting Overlay (Global)
     if (!isConnected && callState?.type === 'active') {
@@ -95,39 +23,10 @@ const CallOverlay = ({ userId }) => {
 
     if (!callState) return null;
 
-    const handleAccept = async () => {
-        if (!callState?.callId) return;
-        try {
-            await apiClient.post(`/calls/${callState.callId}/accept`);
-        } catch (err) {
-            console.error('Failed to accept call:', err);
-            setCallState(null);
-        }
-    };
-
-    const handleReject = async () => {
-        if (!callState?.callId) return;
-        try {
-            await apiClient.post(`/calls/${callState.callId}/reject`);
-        } catch (err) {
-            console.error('Failed to reject call:', err);
-        }
-        setCallState(null);
-    };
-
-    const handleEndCall = async () => {
-        if (!callState?.callId) return;
-        try {
-            await apiClient.post(`/calls/${callState.callId}/end`);
-        } catch (err) {
-            console.error('Failed to end call:', err);
-        }
-        setCallState(null);
-    };
-
-    const handleCancel = async () => {
-        await handleEndCall();
-    };
+    const handleAccept = acceptCall;
+    const handleReject = rejectCall;
+    const handleEndCall = endCall;
+    const handleCancel = endCall; // Cancel is same as end
 
     if (!callState) return null;
 

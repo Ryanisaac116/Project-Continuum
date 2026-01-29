@@ -372,6 +372,15 @@ public class CallService {
         return call;
     }
 
+    public CallSession getActiveCall(Long userId) {
+        List<CallSession> activeCalls = callSessionRepository.findActiveCallsByUserId(
+                userId, List.of(CallStatus.RINGING, CallStatus.ACCEPTED));
+        if (activeCalls.isEmpty()) {
+            return null;
+        }
+        return activeCalls.get(0);
+    }
+
     private void validateNoActiveCall(Long callerId, Long receiverId) {
         if (callSessionRepository.hasActiveCall(callerId)) {
             throw new AccessDeniedException("You already have an active call");

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { RealTimeProvider } from './context/RealTimeContext';
+import { CallProvider, useCall } from './context/CallContext';
 import * as ThemeContext from './context/ThemeContext';
 import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
@@ -22,9 +23,11 @@ import AuthSuccess from './pages/AuthSuccess';
    App with Tab Presence
    ====================== */
 function AppContent() {
+  const { isCallActive } = useCall();
+
   // Tab-aware presence: ONLINE when focused, OFFLINE when hidden
-  // Tab-aware presence: ONLINE when focused, OFFLINE when hidden
-  useTabPresence();
+  // BUT stay ONLINE if in an active call
+  useTabPresence(isCallActive);
 
   const { user } = useAuth();
 
@@ -104,7 +107,9 @@ function App() {
         <ThemeContext.ThemeProvider>
           <NotificationProvider>
             <RealTimeProvider>
-              <AppContent />
+              <CallProvider>
+                <AppContent />
+              </CallProvider>
             </RealTimeProvider>
           </NotificationProvider>
         </ThemeContext.ThemeProvider>

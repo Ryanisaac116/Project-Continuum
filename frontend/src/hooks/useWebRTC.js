@@ -194,10 +194,21 @@ export function useWebRTC(callId, isCaller, remoteUserId) {
                     const stream = await getAudio();
                     stream.getTracks().forEach(t => pc.addTrack(t, stream));
 
-                    // Pre-create video transceiver for screen share
-                    videoTransceiverRef.current = pc.addTransceiver('video', {
-                        direction: 'recvonly'
-                    });
+                    // Find existing video transceiver created by setRemoteDescription
+                    const transceivers = pc.getTransceivers();
+                    const videoTransceiver = transceivers.find(t => t.receiver.track.kind === 'video');
+
+                    if (videoTransceiver) {
+                        videoTransceiverRef.current = videoTransceiver;
+                        // Ensure we are set to recvonly initially (receive screen share)
+                        // But we can update direction if we need to send later
+                        videoTransceiver.direction = 'recvonly';
+                    } else {
+                        // Fallback if not found (shouldn't happen if offer contained video m-line)
+                        videoTransceiverRef.current = pc.addTransceiver('video', {
+                            direction: 'recvonly'
+                        });
+                    }
 
                 }
 
