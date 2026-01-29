@@ -3,6 +3,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { Button } from '../ui/Button';
 import { Link, useLocation } from 'react-router-dom';
 import NotificationCenter from '../NotificationCenter';
+import UserMenu from './UserMenu';
 import { ThemeToggle } from '../ui/ThemeToggle';
 
 // Mobile Navigation Icons
@@ -42,7 +43,6 @@ export const AppLayout = ({ children }) => {
         { label: 'Home', path: '/app', icon: HomeIcon },
         { label: 'Exchanges', path: '/exchanges', icon: ExchangeIcon },
         { label: 'Friends', path: '/friends', icon: FriendsIcon },
-        { label: 'Profile', path: '/profile', icon: ProfileIcon },
     ];
 
     const isActive = (path) => location.pathname === path;
@@ -61,7 +61,6 @@ export const AppLayout = ({ children }) => {
                                 Continuum
                             </Link>
 
-                            {/* Desktop Nav Links */}
                             <nav className="hidden md:flex gap-6">
                                 {navItems.map(item => (
                                     <Link
@@ -80,12 +79,8 @@ export const AppLayout = ({ children }) => {
                             <div className="flex items-center gap-3">
                                 <ThemeToggle />
                                 <NotificationCenter />
-                                <span className="text-sm text-gray-700 dark:text-gray-300 hidden sm:block truncate max-w-[120px]">
-                                    {user.name}
-                                </span>
-                                <Button variant="outline" size="sm" onClick={logout}>
-                                    Logout
-                                </Button>
+                                <div className="h-6 w-px bg-gray-200 dark:bg-slate-800 mx-1"></div>
+                                <UserMenu />
                             </div>
                         )}
                     </div>

@@ -7,6 +7,7 @@ import { CallProvider, useCall } from './context/CallContext';
 import * as ThemeContext from './context/ThemeContext';
 import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
+import SettingsPage from './pages/SettingsPage';
 import HomePage from './pages/HomePage';
 import ProtectedRoute from './routes/ProtectedRoute';
 import { useAuth } from './auth/AuthContext';
@@ -61,6 +62,15 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
             </ProtectedRoute>
           }
         />
