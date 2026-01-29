@@ -60,12 +60,10 @@ const ExchangeIntent = () => {
   const handleStartExchange = () => {
     if (!selectedCategory || !selectedTeachId || !selectedLearnId) return;
 
-    // RULE: Prevent same-skill matching unless it's a Language exchange
-    // Users can practice the same language (conversation), but not teach/learn same coding skill simultaneously
-    if (selectedTeachId === selectedLearnId && selectedCategory !== 'Languages') {
-      alert('You cannot teach and learn the same skill in this category. This is only allowed for Languages (e.g. practicing conversation).');
-      return;
-    }
+    // Validation is now handled by getValidationError() disable state
+    // But double check here just in case
+    const error = getValidationError();
+    if (error) return;
 
     navigate('/exchanges/matching', {
       state: {
@@ -108,6 +106,21 @@ const ExchangeIntent = () => {
       </div>
     );
   }
+
+  // Validation Logic
+  const getValidationError = () => {
+    if (!selectedTeachId || !selectedLearnId) return null;
+
+    const cat = (selectedCategory || '').toLowerCase();
+    const isLanguage = cat === 'languages' || cat === 'language';
+
+    if (selectedTeachId === selectedLearnId && !isLanguage) {
+      return 'You cannot teach and learn the same skill in this category. This is only allowed for Languages.';
+    }
+    return null;
+  };
+
+  const validationError = getValidationError();
 
   return (
     <div className="max-w-xl mx-auto space-y-8">
@@ -187,12 +200,19 @@ const ExchangeIntent = () => {
           </div>
         )}
 
+        {/* Validation Warning */}
+        {validationError && (
+          <div className="p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 text-sm rounded-md border border-amber-200 dark:border-amber-800 animate-in fade-in zoom-in-95 duration-200">
+            ⚠️ {validationError}
+          </div>
+        )}
+
         {/* 3. Action Button */}
         <Button
           onClick={handleStartExchange}
-          disabled={!selectedCategory || !selectedTeachId || !selectedLearnId}
+          disabled={!selectedCategory || !selectedTeachId || !selectedLearnId || !!validationError}
           className="w-full"
-          variant={(!selectedCategory || !selectedTeachId || !selectedLearnId) ? 'secondary' : 'primary'}
+          variant={(!selectedCategory || !selectedTeachId || !selectedLearnId || !!validationError) ? 'secondary' : 'primary'}
         >
           Find Partner
         </Button>
