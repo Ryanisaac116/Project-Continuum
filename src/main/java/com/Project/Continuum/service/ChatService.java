@@ -256,6 +256,37 @@ public class ChatService {
                 return response;
         }
 
+        // ==================== CLEAR CHAT ====================
+        @Transactional
+        public void clearChat(Long userId, Long friendId) {
+                // Fetch all messages involving both users
+                List<ChatMessage> messages = chatMessageRepository
+                                .findBySender_IdAndRecipient_IdOrSender_IdAndRecipient_IdOrderBySentAtAsc(
+                                                userId, friendId, friendId, userId);
+
+                boolean anyUpdated = false;
+                for (ChatMessage msg : messages) {
+                        boolean isSender = msg.getSender().getId().equals(userId);
+
+                        // Soft delete based on role
+                        if (isSender) {
+                                if (!msg.isDeletedForSender()) {
+                                        msg.setDeletedForSender(true);
+                                        anyUpdated = true;
+                                }
+                        } else {
+                                if (!msg.isDeletedForReceiver()) {
+                                        msg.setDeletedForReceiver(true);
+                                        anyUpdated = true;
+                                }
+                        }
+                }
+
+                if (anyUpdated) {
+                        chatMessageRepository.saveAll(messages);
+                }
+        }
+
         // ==================== GET HISTORY ====================
         @Transactional(readOnly = true)
         public List<ChatMessageResponse> getChatHistory(Long userId, Long otherUserId) {

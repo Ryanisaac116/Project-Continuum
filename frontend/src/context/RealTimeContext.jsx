@@ -195,7 +195,10 @@ export const RealTimeProvider = ({ children }) => {
                     }];
                 });
                 // Remove from Recently Met if they send us a request
-                setRecentlyMet(prev => prev.filter(r => r.metUserId !== event.requesterId));
+                setRecentlyMet(prev => prev.filter(r => {
+                    const id = r.metUserId || r.userId;
+                    return id !== event.requesterId;
+                }));
                 break;
 
             case 'FRIEND_REQUEST_ACCEPTED':
@@ -209,7 +212,10 @@ export const RealTimeProvider = ({ children }) => {
                 });
                 setPendingRequests(prev => prev.filter(r => r.requesterId !== event.friendId));
                 // Remove from Recently Met if we accept (or they accept)
-                setRecentlyMet(prev => prev.filter(r => r.metUserId !== event.friendId));
+                setRecentlyMet(prev => prev.filter(r => {
+                    const id = r.metUserId || r.userId;
+                    return id !== event.friendId;
+                }));
                 break;
 
             case 'FRIEND_REQUEST_REJECTED':

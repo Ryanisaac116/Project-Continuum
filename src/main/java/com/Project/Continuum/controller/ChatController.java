@@ -49,6 +49,14 @@ public class ChatController {
         return ResponseEntity.ok(chatService.deleteMessage(userId, messageId, mode));
     }
 
+    // REST: Clear Chat History
+    @DeleteMapping("/api/chat/clear/{friendId}")
+    public ResponseEntity<Void> clearChat(@PathVariable Long friendId) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        chatService.clearChat(userId, friendId);
+        return ResponseEntity.ok().build();
+    }
+
     // REST: Mark Messages as Seen
     @PostMapping("/api/chat/messages/seen")
     public ResponseEntity<Void> markMessagesAsSeen(@RequestBody Map<String, List<Long>> body) {

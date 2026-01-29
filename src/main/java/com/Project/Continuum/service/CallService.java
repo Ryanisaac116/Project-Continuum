@@ -44,7 +44,7 @@ public class CallService {
 
     private static final Logger log = LoggerFactory.getLogger(CallService.class);
 
-    private final CallSessionRepository callSessionRepository;
+    private final CallSessionRepository callSessionRepository; // Restored
     private final ExchangeSessionRepository exchangeSessionRepository;
     private final UserRepository userRepository;
     private final FriendRepository friendRepository;
@@ -53,6 +53,8 @@ public class CallService {
     private final SimpMessageSendingOperations messagingTemplate;
     private final NotificationService notificationService;
     private final Clock clock;
+    private final TaskScheduler taskScheduler;
+    private final ExchangeSessionService exchangeSessionService; // Added dependency
 
     public CallService(
             CallSessionRepository callSessionRepository,
@@ -64,7 +66,10 @@ public class CallService {
             SimpMessageSendingOperations messagingTemplate,
             NotificationService notificationService,
             Clock clock,
-            TaskScheduler taskScheduler) {
+            TaskScheduler taskScheduler,
+            @org.springframework.context.annotation.Lazy ExchangeSessionService exchangeSessionService) { // @Lazy to
+                                                                                                          // break
+                                                                                                          // circle
         this.callSessionRepository = callSessionRepository;
         this.exchangeSessionRepository = exchangeSessionRepository;
         this.userRepository = userRepository;
@@ -75,6 +80,7 @@ public class CallService {
         this.notificationService = notificationService;
         this.clock = clock;
         this.taskScheduler = taskScheduler;
+        this.exchangeSessionService = exchangeSessionService;
     }
 
     // ==================== FRIEND CALL ====================
@@ -369,6 +375,18 @@ public class CallService {
                 "/queue/calls",
                 payload);
 
+        // 🔥 CRITICAL FIX: If this is an EXCHANGE call, we must ALSO complete the
+        // exchange session
+        if (call.getCallType() == CallType.EXCHANGE && call.getExchangeSession() != null) {
+            try {
+                // Call the internal completion method (safe due to @Lazy injection)
+                exchangeSessionService.completeSessionInternal(call.getExchangeSession(), call.getCaller().getId());
+                log.info("Auto-completed exchange session {} after call end.", call.getExchangeSession().getId());
+            } catch (Exception e) {
+                log.error("Failed to auto-complete exchange session", e);
+            }
+        }
+
         return call;
     }
 
@@ -444,7 +462,6 @@ public class CallService {
     // ==================== DISCONNECT HANDLING ====================
 
     private final Map<Long, ScheduledFuture<?>> disconnectTimers = new ConcurrentHashMap<>();
-    private final TaskScheduler taskScheduler;
 
     // ... Constructor update required ...
 

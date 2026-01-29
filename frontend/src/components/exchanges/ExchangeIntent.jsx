@@ -60,6 +60,13 @@ const ExchangeIntent = () => {
   const handleStartExchange = () => {
     if (!selectedCategory || !selectedTeachId || !selectedLearnId) return;
 
+    // RULE: Prevent same-skill matching unless it's a Language exchange
+    // Users can practice the same language (conversation), but not teach/learn same coding skill simultaneously
+    if (selectedTeachId === selectedLearnId && selectedCategory !== 'Languages') {
+      alert('You cannot teach and learn the same skill in this category. This is only allowed for Languages (e.g. practicing conversation).');
+      return;
+    }
+
     navigate('/exchanges/matching', {
       state: {
         intent: 'AUDIO_CALL', // Default intent

@@ -39,4 +39,12 @@ public interface ExchangeSessionRepository
         // 🔹 Count user's sessions by status
         @Query("SELECT COUNT(s) FROM ExchangeSession s WHERE (s.userA.id = :userId OR s.userB.id = :userId) AND s.status = :status")
         long countByUserIdAndStatus(@Param("userId") Long userId, @Param("status") ExchangeStatus status);
+
+        // 🔹 Find recently met users (Sessions completed since given time)
+        @Query("SELECT CASE WHEN s.userA.id = :userId THEN s.userB.id ELSE s.userA.id END " +
+                        "FROM ExchangeSession s " +
+                        "WHERE (s.userA.id = :userId OR s.userB.id = :userId) " +
+                        "AND s.status = 'COMPLETED' " +
+                        "AND s.endedAt > :since")
+        List<Long> findRecentlyMetUserIds(@Param("userId") Long userId, @Param("since") java.time.Instant since);
 }

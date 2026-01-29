@@ -346,6 +346,11 @@ export function useWebRTC(callId, isCaller, remoteUserId) {
         }
 
         try {
+            // Check if screen sharing is supported (Mobile often lacks this)
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                setError('Screen sharing is not supported on this device/browser.');
+                return false;
+            }
 
             const screenStream = await navigator.mediaDevices.getDisplayMedia({
                 video: { cursor: 'always' },
@@ -389,8 +394,13 @@ export function useWebRTC(callId, isCaller, remoteUserId) {
             return true;
         } catch (err) {
             console.error('Screen share error:', err);
-            if (err.name !== 'NotAllowedError') {
-                setError('Failed to start screen share: ' + err.message);
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                // User cancelled or denied
+                // Don't set global error for cancellation
+            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                setError('No screen sharing source found.');
+            } else {
+                setError('Failed to start screen share: ' + (err.message || 'Unknown error'));
             }
             return false;
         }

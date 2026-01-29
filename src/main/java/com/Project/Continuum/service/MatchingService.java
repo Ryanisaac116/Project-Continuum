@@ -22,17 +22,20 @@ public class MatchingService {
     private final UserSkillRepository userSkillRepository;
     private final FriendRepository friendRepository;
     private final UserProfileRepository profileRepository;
+    private final ExchangeSessionRepository exchangeSessionRepository; // Added dependency
 
     public MatchingService(
             UserRepository userRepository,
             UserSkillRepository userSkillRepository,
             FriendRepository friendRepository,
-            UserProfileRepository profileRepository) {
+            UserProfileRepository profileRepository,
+            ExchangeSessionRepository exchangeSessionRepository) {
 
         this.userRepository = userRepository;
         this.userSkillRepository = userSkillRepository;
         this.friendRepository = friendRepository;
         this.profileRepository = profileRepository;
+        this.exchangeSessionRepository = exchangeSessionRepository;
     }
 
     public MatchDecision findMatch(Long userId, MatchingRequest request) {
@@ -84,6 +87,12 @@ public class MatchingService {
          * 3️⃣ Core matching logic
          * =====================================================
          */
+
+        // NEW: Fetch recently met users to exclude them (e.g., last 15 minutes)
+        List<Long> recentlyMetIds = exchangeSessionRepository.findRecentlyMetUserIds(
+                userId,
+                java.time.Instant.now().minus(15, java.time.temporal.ChronoUnit.MINUTES));
+
         /*
          * =====================================================
          * 3️⃣ Core matching logic (TARGETED)
@@ -112,6 +121,11 @@ public class MatchingService {
             Long b = Math.max(userId, partner.getId());
             if (friendRepository.existsByUser1_IdAndUser2_Id(a, b)) {
                 continue;
+            }
+
+            // 2b️⃣ Recently Met Exclusion
+            if (recentlyMetIds.contains(partner.getId())) {
+                continue; // Skip user we just met
             }
 
             // 3️⃣ Presence check

@@ -10,14 +10,47 @@ export const AddSkillForm = ({ onSuccess, onCancel }) => {
     const [level, setLevel] = useState('BEGINNER');
     const [loading, setLoading] = useState(false);
 
+    const [userSkills, setUserSkills] = useState([]);
+
     useEffect(() => {
         // Fetch available system skills
         profileApi.getAllSkills().then(res => setSystemSkills(res.data));
+        // Fetch current user skills for validation
+        profileApi.getUserSkills().then(res => setUserSkills(res.data));
     }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!selectedSkill) return;
+
+        // 1. Find the selected skill object to check category
+        const skillObj = systemSkills.find(s => s.id === parseInt(selectedSkill));
+        if (!skillObj) return;
+
+        // 2. Check for existing conflicts
+        // - Prevent adding exact same skill/type (Duplicate)
+        // - Prevent "Teach" if "Learn" exists (unless Language)
+        // - Prevent "Learn" if "Teach" exists (unless Language)
+
+        const existingExact = userSkills.find(
+            us => us.skill.id === parseInt(selectedSkill) && us.type === type
+        );
+        if (existingExact) {
+            alert(`You already have ${skillObj.name} as a ${type} skill.`);
+            return;
+        }
+
+        const existingOpposite = userSkills.find(
+            us => us.skill.id === parseInt(selectedSkill) && us.type !== type
+        );
+
+        if (existingOpposite) {
+            // Check category
+            if (skillObj.category !== 'Languages') {
+                alert(`You cannot Teach and Learn the same skill (${skillObj.name}). This is only allowed for Languages.`);
+                return;
+            }
+        }
 
         setLoading(true);
         try {

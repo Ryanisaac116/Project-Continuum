@@ -304,56 +304,62 @@ public class ExchangeSessionService {
         /* ================= END SESSION ================= */
 
         public ExchangeSessionResponse endSession(Long sessionId, Long currentUserId) {
-
                 ExchangeSession session = getSessionOrThrow(sessionId);
-
-                // Debug logging
-                // Debug logs removed
 
                 if (!session.isParticipant(currentUserId)) {
                         throw new AccessDeniedException("You are not part of this session");
                 }
 
-                // Allow ending if ACTIVE or ACCEPTED (in case of stuck sessions)
+                // Allow ending if ACTIVE or ACCEPTED
                 if (session.getStatus() != ExchangeStatus.ACTIVE && session.getStatus() != ExchangeStatus.ACCEPTED) {
                         throw new BadRequestException(
                                         "Only ACTIVE sessions can be ended. Current: " + session.getStatus());
                 }
 
-                session.setStatus(ExchangeStatus.COMPLETED);
-                session.setEndedAt(Instant.now(clock));
-
-                ExchangeSession saved = exchangeSessionRepository.save(session);
-
-                // End any active calls linked to this exchange
+                // 1. End active calls first (to avoid loop if called from CallService, but here
+                // we initiate)
                 callService.endCallsForExchange(sessionId);
 
-                // RESTORE PRESENCE → ONLINE
+                // 2. Complete session logic
+                return completeSessionInternal(session, currentUserId);
+        }
+
+        /**
+         * Internal method to finalize session state, presence, and notifications.
+         * Safe to call from CallService.
+         */
+        public ExchangeSessionResponse completeSessionInternal(ExchangeSession session, Long endedByUserId) {
+                if (session.getStatus() == ExchangeStatus.COMPLETED) {
+                        return mapToResponse(session);
+                }
+
+                session.setStatus(ExchangeStatus.COMPLETED);
+                session.setEndedAt(Instant.now(clock));
+                ExchangeSession saved = exchangeSessionRepository.save(session);
+
+                // RESTORE PRESENCE -> ONLINE
                 presenceService.updatePresence(saved.getUserA().getId(), PresenceStatus.ONLINE);
                 presenceService.setUserSession(saved.getUserA().getId(), null);
 
                 presenceService.updatePresence(saved.getUserB().getId(), PresenceStatus.ONLINE);
                 presenceService.setUserSession(saved.getUserB().getId(), null);
 
-                // Get the user who ended the session
-                User endingUser = userRepository.findById(currentUserId).orElse(null);
-                String endingUserName = endingUser != null ? endingUser.getName() : "Unknown";
+                // Get name
+                String endingUserName = "System";
+                if (endedByUserId != null && endedByUserId != 0L) {
+                        endingUserName = userRepository.findById(endedByUserId)
+                                        .map(User::getName).orElse("Unknown");
+                }
 
-                // Notify BOTH users via WebSocket
+                // Notify
                 Map<String, Object> event = Map.of(
                                 "type", "SESSION_ENDED",
-                                "sessionId", sessionId,
-                                "endedByUserId", currentUserId,
+                                "sessionId", session.getId(),
+                                "endedByUserId", endedByUserId != null ? endedByUserId : 0L,
                                 "endedByUserName", endingUserName);
 
-                messagingTemplate.convertAndSendToUser(
-                                saved.getUserA().getId().toString(),
-                                "/queue/session",
-                                event);
-                messagingTemplate.convertAndSendToUser(
-                                saved.getUserB().getId().toString(),
-                                "/queue/session",
-                                event);
+                messagingTemplate.convertAndSendToUser(saved.getUserA().getId().toString(), "/queue/session", event);
+                messagingTemplate.convertAndSendToUser(saved.getUserB().getId().toString(), "/queue/session", event);
 
                 return mapToResponse(saved);
         }
