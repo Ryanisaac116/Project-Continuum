@@ -3,8 +3,11 @@ package com.Project.Continuum.scheduler;
 import com.Project.Continuum.entity.CallSession;
 import com.Project.Continuum.enums.CallEndReason;
 import com.Project.Continuum.enums.CallStatus;
+import com.Project.Continuum.enums.ExchangeStatus;
 import com.Project.Continuum.enums.NotificationType;
+import com.Project.Continuum.entity.ExchangeSession;
 import com.Project.Continuum.repository.CallSessionRepository;
+import com.Project.Continuum.repository.ExchangeSessionRepository;
 import com.Project.Continuum.service.ExchangeSessionService;
 import com.Project.Continuum.service.NotificationService;
 import com.Project.Continuum.store.CallStateStore;
@@ -46,6 +49,7 @@ public class CallTimeoutScheduler {
     private final CallSessionRepository callSessionRepository;
     private final CallStateStore callStateStore;
     private final ExchangeSessionService exchangeSessionService;
+    private final ExchangeSessionRepository exchangeSessionRepository;
     private final NotificationService notificationService;
     private final SimpMessageSendingOperations messagingTemplate;
     private final Clock clock;
@@ -54,12 +58,14 @@ public class CallTimeoutScheduler {
             CallSessionRepository callSessionRepository,
             CallStateStore callStateStore,
             ExchangeSessionService exchangeSessionService,
+            ExchangeSessionRepository exchangeSessionRepository,
             NotificationService notificationService,
             SimpMessageSendingOperations messagingTemplate,
             Clock clock) {
         this.callSessionRepository = callSessionRepository;
         this.callStateStore = callStateStore;
         this.exchangeSessionService = exchangeSessionService;
+        this.exchangeSessionRepository = exchangeSessionRepository;
         this.notificationService = notificationService;
         this.messagingTemplate = messagingTemplate;
         this.clock = clock;
@@ -74,23 +80,43 @@ public class CallTimeoutScheduler {
     @PostConstruct
     @Transactional
     public void cleanupStuckCallsOnStartup() {
-        log.info("🧹 Server starting - cleaning up stuck call sessions...");
+        log.info("🧹 Server starting - cleaning up stuck sessions...");
 
+        // 1. Clean stuck CALL sessions
         List<CallSession> activeCalls = callSessionRepository.findAll().stream()
                 .filter(c -> c.getStatus() == CallStatus.RINGING || c.getStatus() == CallStatus.ACCEPTED)
                 .toList();
 
-        int cleaned = 0;
+        int cleanedCalls = 0;
         for (CallSession call : activeCalls) {
             try {
                 endStaleCall(call, CallEndReason.STALE_TIMEOUT, "Server restart");
-                cleaned++;
+                cleanedCalls++;
             } catch (Exception e) {
                 log.error("Failed to clean up call {}: {}", call.getId(), e.getMessage());
             }
         }
 
-        log.info("🧹 Startup cleanup complete: {} stuck calls cleared", cleaned);
+        // 2. Clean stuck EXCHANGE sessions (Fixes "Active Exchanges" dashboard stat)
+        List<ExchangeSession> activeExchanges = exchangeSessionRepository.findByStatus(ExchangeStatus.ACTIVE);
+        int cleanedExchanges = 0;
+
+        for (ExchangeSession session : activeExchanges) {
+            try {
+                log.info("Closing stuck exchange session on startup: sessionId={}", session.getId());
+                session.setStatus(ExchangeStatus.COMPLETED);
+                if (session.getEndedAt() == null) {
+                    session.setEndedAt(Instant.now(clock));
+                }
+                exchangeSessionRepository.save(session);
+                cleanedExchanges++;
+            } catch (Exception e) {
+                log.error("Failed to clean up exchange session {}: {}", session.getId(), e.getMessage());
+            }
+        }
+
+        log.info("🧹 Startup cleanup complete: {} stuck calls, {} stuck exchanges cleared", cleanedCalls,
+                cleanedExchanges);
     }
 
     // ==================== RINGING CALL TIMEOUT ====================

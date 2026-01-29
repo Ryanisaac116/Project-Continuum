@@ -15,6 +15,9 @@ import java.util.Optional;
 public interface ExchangeSessionRepository
                 extends JpaRepository<ExchangeSession, Long> {
 
+        // 🔹 Find sessions by status (used for startup cleanup)
+        List<ExchangeSession> findByStatus(ExchangeStatus status);
+
         // 🔹 Find an active or ongoing session between two users
         Optional<ExchangeSession> findByUserA_IdAndUserB_IdAndStatusIn(
                         Long userAId,
