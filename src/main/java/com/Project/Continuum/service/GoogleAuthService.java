@@ -3,10 +3,10 @@ package com.Project.Continuum.service;
 import com.Project.Continuum.entity.User;
 import com.Project.Continuum.enums.AuthProvider;
 import com.Project.Continuum.enums.PresenceStatus;
+import com.Project.Continuum.exception.BadRequestException;
 import com.Project.Continuum.repository.UserRepository;
 import com.Project.Continuum.security.JwtUtil;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +18,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @Profile({ "prod", "dev" })
@@ -70,8 +71,11 @@ public class GoogleAuthService {
         // 4. Sync User
         User user = syncUser(providerUserId, name, email, pictureUrl);
 
-        // 5. Issue JWT
-        return jwtUtil.generateToken(user.getId());
+        // 5. Issue JWT bound to a server-side session token.
+        String sessionToken = UUID.randomUUID().toString();
+        user.setSessionToken(sessionToken);
+        userRepository.save(user);
+        return jwtUtil.generateToken(user.getId(), sessionToken);
     }
 
     private String exchangeCodeForToken(String code) {
@@ -129,6 +133,9 @@ public class GoogleAuthService {
 
         if (existing.isPresent()) {
             User user = existing.get();
+            if (!user.isActive()) {
+                throw new BadRequestException("Account is deactivated");
+            }
             boolean updated = false;
 
             if (!user.getName().equals(name)) {

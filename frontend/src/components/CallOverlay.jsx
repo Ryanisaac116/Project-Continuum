@@ -128,14 +128,14 @@ const ActiveCallScreen = ({ callState, userId, onEndCall }) => {
         cleanup
     } = useWebRTC(callState.callId, isCaller, remoteUserId);
 
-    // Start call if we are the caller - with delay to ensure receiver has subscribed
+    // Start call if we are the caller - minimal delay for React effect cycle
     useEffect(() => {
         if (isCaller) {
-            // Delay to ensure receiver has subscribed to signals
+            // 100ms is sufficient for React's effect pipeline
             const timer = setTimeout(() => {
-                console.log('[ActiveCallScreen] Starting call after delay');
+                console.log('[ActiveCallScreen] Starting call');
                 startCall();
-            }, 500);
+            }, 100);
             return () => clearTimeout(timer);
         }
     }, [isCaller, startCall]);

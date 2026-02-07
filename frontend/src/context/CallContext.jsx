@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import apiClient from '../api/client';
 import { addListener, onConnectionChange } from '../ws/chatSocket';
@@ -24,7 +25,7 @@ export const CallProvider = ({ children }) => {
                 setCallState({
                     type: 'incoming',
                     callId: data.callId,
-                    sessionId: data.sessionId,
+                    sessionId: data.exchangeSessionId ?? data.sessionId ?? null,
                     callerId: data.callerId,
                     callerName: data.callerName
                 });
@@ -34,7 +35,7 @@ export const CallProvider = ({ children }) => {
                 setCallState({
                     type: 'outgoing',
                     callId: data.callId,
-                    sessionId: data.sessionId,
+                    sessionId: data.exchangeSessionId ?? data.sessionId ?? null,
                     receiverId: data.receiverId,
                     receiverName: data.receiverName
                 });
@@ -68,7 +69,7 @@ export const CallProvider = ({ children }) => {
             default:
                 break;
         }
-    }, []);
+    }, [addToast]);
 
     // Subscribe to socket events
     useEffect(() => {
@@ -76,25 +77,7 @@ export const CallProvider = ({ children }) => {
         return () => unsubscribe();
     }, [handleCallEvent]);
 
-    // Monitor connection
-    useEffect(() => {
-        const unsubscribe = onConnectionChange((connected) => {
-            setIsConnected(connected);
-            if (!connected && isCallActive) {
-                console.warn('[CallContext] Connection lost during active call');
-            } else if (connected) {
-                // On reconnect, check if we have an active call in backend
-                checkActiveCall();
-            }
-        });
-
-        // Initial check
-        checkActiveCall();
-
-        return () => unsubscribe();
-    }, [isCallActive]);
-
-    const checkActiveCall = async () => {
+    const checkActiveCall = useCallback(async () => {
         try {
             const res = await apiClient.get('/calls/active');
             if (res.data) {
@@ -122,7 +105,22 @@ export const CallProvider = ({ children }) => {
         } catch (err) {
             console.error('[CallContext] Failed to check active call:', err);
         }
-    };
+    }, []);
+
+    // Monitor connection
+    useEffect(() => {
+        const unsubscribe = onConnectionChange((connected) => {
+            setIsConnected(connected);
+            if (!connected && isCallActive) {
+                console.warn('[CallContext] Connection lost during active call');
+            } else if (connected) {
+                // On reconnect, check if we have an active call in backend
+                checkActiveCall();
+            }
+        });
+
+        return () => unsubscribe();
+    }, [isCallActive, checkActiveCall]);
 
     // Actions
     const acceptCall = async () => {
@@ -153,14 +151,6 @@ export const CallProvider = ({ children }) => {
             console.error('Failed to end call:', err);
         }
         setCallState(null);
-    };
-
-    const startCall = async (friendId) => {
-        // This is usually handled by UI triggering an API call, 
-        // which then sends a socket event back to us (CALL_RINGING).
-        // For now, we assume the UI calls the API directly, or we can add it here.
-        // Let's leave API calls in the UI components for initiation if they are complex,
-        // but simple "Accept/Reject/End" fit well here.
     };
 
     const clearCallState = () => setCallState(null);

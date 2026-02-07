@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { getToken } from '../api/client';
@@ -49,6 +50,8 @@ export const RealTimeProvider = ({ children }) => {
     const listenersRef = useRef([]);
     const friendIdsRef = useRef(new Set());
     const isSettingUpRef = useRef(false);
+    const lastBackgroundSyncRef = useRef(0);
+    const connectionWasUpRef = useRef(false);
 
     // Derived values
     const friendsOnline = friends.filter(f => f.presenceStatus === 'ONLINE').length;
@@ -56,10 +59,12 @@ export const RealTimeProvider = ({ children }) => {
 
     // ==================== DATA FETCHING ====================
 
-    const fetchAllData = useCallback(async () => {
+    const fetchAllData = useCallback(async ({ silent = false } = {}) => {
         if (!user) return;
 
-        setIsLoading(true);
+        if (!silent) {
+            setIsLoading(true);
+        }
         try {
             const [friendsRes, requestsRes, recentlyMetRes] = await Promise.all([
                 friendsApi.getFriends(),
@@ -74,9 +79,22 @@ export const RealTimeProvider = ({ children }) => {
         } catch (err) {
             console.error('[RealTime] Failed to fetch data:', err);
         } finally {
-            setIsLoading(false);
+            if (!silent) {
+                setIsLoading(false);
+            }
         }
     }, [user]);
+
+    const syncDataInBackground = useCallback((force = false) => {
+        if (!isAuthenticated || !user) return;
+
+        const now = Date.now();
+        const minIntervalMs = 10000;
+        if (!force && now - lastBackgroundSyncRef.current < minIntervalMs) return;
+        lastBackgroundSyncRef.current = now;
+
+        fetchAllData({ silent: true });
+    }, [fetchAllData, isAuthenticated, user]);
 
     // ==================== PRESENCE SUBSCRIPTIONS ====================
 
@@ -279,7 +297,7 @@ export const RealTimeProvider = ({ children }) => {
 
         listenersRef.current.push(friendUnsub, sessionUnsub, matchUnsub);
 
-    }, [isAuthenticated, handleFriendEvent]);
+    }, [isAuthenticated, handleFriendEvent, handleSessionEvent, handleMatchEvent]);
 
     // ==================== LIFECYCLE ====================
 
@@ -287,17 +305,24 @@ export const RealTimeProvider = ({ children }) => {
     useEffect(() => {
         const unsub = onConnectionChange((connected) => {
             console.log('[RealTime] Connection state:', connected);
+            const wasConnected = connectionWasUpRef.current;
+            connectionWasUpRef.current = connected;
             setIsConnected(connected);
 
-            if (connected && friends.length > 0) {
-                // Re-setup subscriptions: Clean old ones first to prevent duplicates
-                cleanupPresenceSubscriptions();
-                setupPresenceSubscriptions();
+            // Run expensive sync logic only on real reconnect transitions.
+            if (connected && !wasConnected) {
+                if (friends.length > 0) {
+                    // Re-setup subscriptions: Clean old ones first to prevent duplicates
+                    cleanupPresenceSubscriptions();
+                    setupPresenceSubscriptions();
+                }
+                // Pull a fresh snapshot after reconnect to cover missed events.
+                syncDataInBackground(true);
             }
         });
 
         return () => unsub();
-    }, [friends.length, setupPresenceSubscriptions, cleanupPresenceSubscriptions]);
+    }, [friends.length, setupPresenceSubscriptions, cleanupPresenceSubscriptions, syncDataInBackground]);
 
     // Fetch data when user is available
     useEffect(() => {
@@ -332,6 +357,25 @@ export const RealTimeProvider = ({ children }) => {
             setupPresenceSubscriptions();
         }
     }, [isConnected, friends.length, setupPresenceSubscriptions]);
+
+    // Keep data fresh on focus/visibility transitions without continuous polling.
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        const syncIfVisible = () => {
+            if (document.visibilityState === 'visible') {
+                syncDataInBackground();
+            }
+        };
+
+        window.addEventListener('focus', syncIfVisible);
+        document.addEventListener('visibilitychange', syncIfVisible);
+
+        return () => {
+            window.removeEventListener('focus', syncIfVisible);
+            document.removeEventListener('visibilitychange', syncIfVisible);
+        };
+    }, [isAuthenticated, syncDataInBackground]);
 
     // Cleanup on unmount
     useEffect(() => {

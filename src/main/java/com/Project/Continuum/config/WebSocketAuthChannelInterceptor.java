@@ -50,16 +50,19 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
                         String jwtSessionToken = jwtUtil.extractSessionToken(token);
 
                         if (userId != null) {
-                            // Validate session token against DB logic (One Device Login)
-                            if (jwtSessionToken != null) {
-                                var userOpt = userRepository.findById(userId);
-                                if (userOpt.isPresent()) {
-                                    String dbSessionToken = userOpt.get().getSessionToken();
-                                    if (dbSessionToken == null || !dbSessionToken.equals(jwtSessionToken)) {
-                                        System.err.println("[WebSocketAuth] Session token mismatch for user " + userId);
-                                        return message; // Invalid session, treat as unauthenticated
-                                    }
-                                }
+                            var userOpt = userRepository.findById(userId);
+                            if (userOpt.isEmpty() || !userOpt.get().isActive()) {
+                                return message;
+                            }
+
+                            if (jwtSessionToken == null) {
+                                return message;
+                            }
+
+                            String dbSessionToken = userOpt.get().getSessionToken();
+                            if (dbSessionToken == null || !dbSessionToken.equals(jwtSessionToken)) {
+                                System.err.println("[WebSocketAuth] Session token mismatch for user " + userId);
+                                return message; // Invalid session, treat as unauthenticated
                             }
 
                             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(

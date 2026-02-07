@@ -22,7 +22,6 @@ import { getWsUrl } from '../api/client';
 let client = null;
 let connected = false;
 let presenceSubscriptions = {};
-let reconnectAttempts = 0;
 let connectionCallbacks = { onConnected: null, onError: null };
 
 // Event listeners by type (multiple listeners per type)
@@ -144,10 +143,11 @@ const setupSubscriptions = () => {
             // Emit generic session event
             emit('session', { ...data, event: eventType });
 
-            if (eventType === 'session_invalidated') {
+            if (eventType === 'session_invalidated' || eventType === 'account_inactive') {
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
-                alert(data.message || 'You were logged out because your account was used on another device.');
+                localStorage.removeItem('userId');
+                alert(data.message || 'Your session is no longer valid. Please log in again.');
                 window.location.href = '/login';
             }
         });
@@ -190,13 +190,6 @@ const setupSubscriptions = () => {
             emit('match', data);
         });
 
-        // Session events (Started, Ended)
-        client.subscribe('/user/queue/session', (message) => {
-            const data = JSON.parse(message.body);
-
-            emit('session', data);
-        });
-
         // Re-subscribe to presence for existing subscriptions
         Object.keys(presenceSubscriptions).forEach(userId => {
             resubscribeToPresence(Number(userId));
@@ -235,7 +228,7 @@ const resubscribeToPresence = (userId) => {
         if (presenceSubscriptions[userId]) {
             try {
                 presenceSubscriptions[userId].unsubscribe();
-            } catch (e) { /* ignore */ }
+            } catch { /* ignore */ }
         }
         presenceSubscriptions[userId] = subscription;
     } catch (err) {
@@ -259,7 +252,7 @@ export const connectChatSocket = (token, onMessage, onConnected, onError) => {
     if (client) {
         try {
             client.deactivate();
-        } catch (e) { /* ignore */ }
+        } catch { /* ignore */ }
         client = null;
     }
 
@@ -269,10 +262,10 @@ export const connectChatSocket = (token, onMessage, onConnected, onError) => {
     client = new Client({
         brokerURL: wsUrl,
         // OPTIMIZED: Faster reconnection
-        reconnectDelay: 1000, // Start at 1 second
-        // Heartbeat for connection health
-        heartbeatIncoming: 10000,
-        heartbeatOutgoing: 10000,
+        reconnectDelay: 5000, // Less aggressive reconnect to reduce backend log spam on flaky links
+        // Heartbeat for connection health (reduced frequency to cut backend log noise)
+        heartbeatIncoming: 30000,
+        heartbeatOutgoing: 30000,
         // Disable debug in production
         debug: () => { },
         // Connection timeout
@@ -281,8 +274,6 @@ export const connectChatSocket = (token, onMessage, onConnected, onError) => {
 
     client.onConnect = () => {
         connected = true;
-        reconnectAttempts = 0;
-
 
         setupSubscriptions();
         notifyConnectionChange(true);
@@ -401,7 +392,7 @@ export const disconnectChatSocket = () => {
     Object.values(presenceSubscriptions).forEach((sub) => {
         try {
             sub.unsubscribe();
-        } catch (e) { }
+        } catch { /* ignore */ }
     });
     presenceSubscriptions = {};
     listeners.presence.clear();

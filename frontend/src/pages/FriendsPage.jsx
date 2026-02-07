@@ -28,8 +28,6 @@ const FriendsPage = () => {
 
     // UI state for pending API actions
     const [pendingActions, setPendingActions] = useState({});
-    const [error, setError] = useState(null);
-
     // ==================== ACTION HANDLERS ====================
 
     /**
@@ -52,7 +50,7 @@ const FriendsPage = () => {
     /**
      * Accept an incoming friend request
      */
-    const handleAcceptRequest = useCallback(async (requesterId, requesterName, presence) => {
+    const handleAcceptRequest = useCallback(async (requesterId) => {
         setPendingActions(prev => ({ ...prev, [`accept-${requesterId}`]: true }));
 
         try {
@@ -93,16 +91,6 @@ const FriendsPage = () => {
             <PageContainer>
                 <div className="text-center py-20">
                     <div className="text-gray-500 dark:text-slate-500">Loading friends...</div>
-                </div>
-            </PageContainer>
-        );
-    }
-
-    if (error) {
-        return (
-            <PageContainer>
-                <div className="text-center py-20">
-                    <div className="text-red-500 dark:text-red-400">{error}</div>
                 </div>
             </PageContainer>
         );

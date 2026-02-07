@@ -10,17 +10,27 @@ export const authApi = {
      * Dev login by user ID
      * @param {number} userId - User ID to login as
      */
-    devLogin: (userId) => apiClient.post(`/dev/auth/login/${userId}`),
+    devLogin: (userId) => apiClient.post('/auth/dev/login', { userId }),
 
     /**
-     * Logout current user
+     * Logout current user.
      */
-    logout: () => apiClient.post('/dev/auth/logout'),
+    logout: () => apiClient.post('/users/logout'),
+
+    /**
+     * Soft deactivate current user account.
+     */
+    deactivateAccount: () => apiClient.patch('/users/me/deactivate'),
+
+    /**
+     * Permanently delete current user account.
+     */
+    deleteAccount: () => apiClient.delete('/users/me'),
 
     /**
      * Get current authenticated user
      */
-    getMe: () => apiClient.get('/users/me'),
+    getMe: () => apiClient.get('/users/me', { skipAuthRedirect: true }),
 };
 
 export default authApi;

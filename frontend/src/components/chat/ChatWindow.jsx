@@ -5,7 +5,6 @@ import { getToken } from '../../api/client';
 import {
     connectChatSocket,
     sendChatMessage,
-    disconnectChatSocket,
     isChatConnected
 } from '../../ws/chatSocket';
 import { formatTime } from '../../utils/dateUtils';

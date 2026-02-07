@@ -1,14 +1,12 @@
 import apiClient from './client';
 
-// Join matching queue
-export const joinMatching = async (intent) => {
-  const response = await apiClient.post('/matching/join', null, {
-    params: { intent },
-  });
+// Join matching queue (REST fallback; main flow uses WebSocket)
+export const joinMatching = async (request) => {
+  const response = await apiClient.post('/matching/join', request);
   return response.data;
 };
 
-// Cancel matching (only if you implemented backend endpoint)
+// Cancel matching is handled by WebSocket '/app/matching.leave'
 export const cancelMatching = async () => {
-  await apiClient.post('/matching/cancel');
+  return Promise.resolve();
 };

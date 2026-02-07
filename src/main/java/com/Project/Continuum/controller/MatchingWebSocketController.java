@@ -86,10 +86,11 @@ public class MatchingWebSocketController {
                 !decision.getCandidates().isEmpty()) {
 
             for (MatchCandidate candidate : decision.getCandidates()) {
-                // If candidate is also waiting in queue (active), match them!
-                if (waitingQueue.containsKey(candidate.getUserId())) {
+                // ATOMIC: remove() returns the value if present, null otherwise.
+                // This ensures only one thread can claim the waiting user.
+                MatchIntent claimedIntent = waitingQueue.remove(candidate.getUserId());
+                if (claimedIntent != null) {
                     log.info("Matched with waiting candidate: {} <-> {}", userId, candidate.getUserId());
-                    waitingQueue.remove(candidate.getUserId());
                     createSessionAndNotify(userId, candidate.getUserId());
                     return;
                 }

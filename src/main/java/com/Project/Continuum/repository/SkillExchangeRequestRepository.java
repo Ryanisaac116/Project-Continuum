@@ -23,4 +23,6 @@ public interface SkillExchangeRequestRepository
             Long senderSkillId,
             Long receiverSkillId
     );
+
+    void deleteBySender_IdOrReceiver_Id(Long senderId, Long receiverId);
 }

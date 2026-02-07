@@ -11,14 +11,14 @@ self.addEventListener('push', function (event) {
     let data = {};
     try {
         data = event.data.json();
-    } catch (e) {
+    } catch {
         data = { title: 'New Notification', body: event.data.text() };
     }
 
     const options = {
         body: data.body || 'You have a new message',
-        icon: '/logo192.png', // Fallback to app logo
-        badge: '/favicon.ico',
+        icon: '/continuum_logo_transparent.png?v=4',
+        badge: '/continuum_logo_transparent.png?v=4',
         data: data.data || {}, // Custom data (url, etc)
         actions: [
             { action: 'open', title: 'View' }
@@ -37,7 +37,7 @@ self.addEventListener('notificationclick', function (event) {
     const urlToOpen = event.notification.data?.url || '/';
 
     event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (windowClients) {
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (windowClients) {
             // Check if there is already a window/tab open with the target URL
             for (let i = 0; i < windowClients.length; i++) {
                 const client = windowClients[i];
@@ -46,9 +46,10 @@ self.addEventListener('notificationclick', function (event) {
                 }
             }
             // If not, open a new window
-            if (clients.openWindow) {
-                return clients.openWindow(urlToOpen);
+            if (self.clients.openWindow) {
+                return self.clients.openWindow(urlToOpen);
             }
         })
     );
 });
+

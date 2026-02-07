@@ -331,6 +331,42 @@ export function useWebRTC(callId, isCaller, remoteUserId) {
         }
     }, []);
 
+    const stopScreenShare = useCallback(async () => {
+        // Stop local screen stream
+        if (screenStreamRef.current) {
+            screenStreamRef.current.getTracks().forEach(t => t.stop());
+            screenStreamRef.current = null;
+        }
+
+        // Clear track from transceiver
+        const transceiver = videoTransceiverRef.current;
+        if (transceiver && transceiver.sender) {
+            try {
+                await transceiver.sender.replaceTrack(null);
+                transceiver.direction = 'recvonly';
+
+            } catch (e) {
+                console.warn('Error clearing transceiver:', e);
+            }
+        }
+
+        setIsScreenSharing(false);
+
+        // Notify remote
+        if (isChatConnected() && !cleanedUpRef.current) {
+            sendCallSignal({
+                type: 'SCREEN_SHARE_STOP',
+                sessionId: callIdRef.current,
+                payload: '{}',
+                recipientId: remoteUserIdRef.current
+            });
+
+            // Renegotiate
+            await sendRenegotiationOffer();
+        }
+
+    }, [sendRenegotiationOffer]);
+
     // ==================== SCREEN SHARING ====================
 
     const startScreenShare = useCallback(async () => {
@@ -373,7 +409,6 @@ export function useWebRTC(callId, isCaller, remoteUserId) {
 
             // Handle when user stops via browser UI
             videoTrack.onended = () => {
-
                 stopScreenShare();
             };
 
@@ -404,44 +439,7 @@ export function useWebRTC(callId, isCaller, remoteUserId) {
             }
             return false;
         }
-    }, [role, sendRenegotiationOffer]);
-
-    const stopScreenShare = useCallback(async () => {
-        // Stop local screen stream
-        if (screenStreamRef.current) {
-            screenStreamRef.current.getTracks().forEach(t => t.stop());
-            screenStreamRef.current = null;
-        }
-
-        // Clear track from transceiver
-        const transceiver = videoTransceiverRef.current;
-        if (transceiver && transceiver.sender) {
-            try {
-                await transceiver.sender.replaceTrack(null);
-                transceiver.direction = 'recvonly';
-
-            } catch (e) {
-                console.warn('Error clearing transceiver:', e);
-            }
-        }
-
-        setIsScreenSharing(false);
-
-        // Notify remote
-        if (isChatConnected() && !cleanedUpRef.current) {
-            sendCallSignal({
-                type: 'SCREEN_SHARE_STOP',
-                sessionId: callIdRef.current,
-                payload: '{}',
-                recipientId: remoteUserIdRef.current
-            });
-
-            // Renegotiate
-            await sendRenegotiationOffer();
-        }
-
-
-    }, [role, sendRenegotiationOffer]);
+    }, [role, sendRenegotiationOffer, stopScreenShare]);
 
     const cleanup = useCallback(() => {
         if (cleanedUpRef.current) return;

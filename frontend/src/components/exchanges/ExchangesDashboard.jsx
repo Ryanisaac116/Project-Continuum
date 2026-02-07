@@ -52,9 +52,6 @@ const ExchangesDashboard = () => {
   useEffect(() => {
     fetchStats();
 
-    // Refresh stats every 30 seconds (fallback)
-    const interval = setInterval(fetchStats, 30000);
-
     // Real-time listener: Refresh when a match is found OR session changes
     const matchUnsub = addListener('match', (data) => {
       console.log('ExchangesDashboard: Match event received, refreshing stats...');
@@ -70,15 +67,20 @@ const ExchangesDashboard = () => {
       }
     });
 
-    return () => {
-      clearInterval(interval);
-      matchUnsub();
-      sessionUnsub();
+    // One-shot refresh when user returns to tab/window.
+    const syncIfVisible = () => {
+      if (document.visibilityState === 'visible') {
+        fetchStats();
+      }
     };
+    window.addEventListener('focus', syncIfVisible);
+    document.addEventListener('visibilitychange', syncIfVisible);
 
     return () => {
-      clearInterval(interval);
-      removeListener();
+      matchUnsub();
+      sessionUnsub();
+      window.removeEventListener('focus', syncIfVisible);
+      document.removeEventListener('visibilitychange', syncIfVisible);
     };
   }, []);
 

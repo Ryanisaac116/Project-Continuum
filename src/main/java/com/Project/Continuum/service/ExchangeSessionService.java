@@ -16,6 +16,8 @@ import com.Project.Continuum.repository.ExchangeSessionRepository;
 import com.Project.Continuum.repository.SkillExchangeRequestRepository;
 import com.Project.Continuum.repository.UserRepository;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +30,8 @@ import java.util.Map;
 @Service
 @Transactional
 public class ExchangeSessionService {
+
+        private static final Logger log = LoggerFactory.getLogger(ExchangeSessionService.class);
 
         private final ExchangeSessionRepository exchangeSessionRepository;
         private final SkillExchangeRequestRepository requestRepository;
@@ -379,8 +383,13 @@ public class ExchangeSessionService {
 
                 ExchangeSession saved = exchangeSessionRepository.save(session);
 
-                // End any active calls linked to this exchange
-                callService.endCallsForExchange(sessionId);
+                // End any active calls linked to this exchange (best-effort)
+                try {
+                        callService.endCallsForExchange(sessionId);
+                } catch (Exception e) {
+                        log.error("Failed to end calls for expired session {}: {}", sessionId, e.getMessage());
+                        // Continue with session expiry regardless
+                }
 
                 // RESTORE PRESENCE → ONLINE
                 presenceService.updatePresence(saved.getUserA().getId(), PresenceStatus.ONLINE);

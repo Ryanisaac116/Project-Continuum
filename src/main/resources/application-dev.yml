@@ -21,7 +21,7 @@ spring:
 # ===============================
 jwt:
   secret: continuum-dev-secret-key-change-in-prod
-  expiration-ms: 86400000
+  expiration-ms: 2592000000
 
 # ===============================
 # WEB PUSH (VAPID) CONFIG (DEV)
@@ -31,12 +31,6 @@ push:
     public-key: BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U
     private-key: UUxI4O8-FbRouADVXc-hK-l-dR0OYDy3fOY7EHmWnqs
     subject: mailto:dev@continuum.local
-
-    hibernate:
-      ddl-auto: update
-  jackson:
-    serialization:
-      write-dates-as-timestamps: false
 
 # ===============================
 # GOOGLE OAUTH CONFIG (DEV)

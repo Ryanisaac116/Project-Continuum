@@ -29,4 +29,6 @@ public interface PushSubscriptionRepository extends JpaRepository<PushSubscripti
      * Check if user has any active subscriptions
      */
     boolean existsByUserId(Long userId);
+
+    void deleteByUserId(Long userId);
 }

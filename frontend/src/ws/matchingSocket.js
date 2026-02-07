@@ -39,14 +39,10 @@ export const connectMatchingSocket = (token, onMessage, onConnected, onError) =>
         connectHeaders: {
             Authorization: `Bearer ${token}`,
         },
-        debug: (str) => {
-            if (str.includes('ERROR') || str.includes('CONNECTED')) {
-
-            }
-        },
+        debug: () => { },
         reconnectDelay: 5000,
-        heartbeatIncoming: 4000,
-        heartbeatOutgoing: 4000,
+        heartbeatIncoming: 30000,
+        heartbeatOutgoing: 30000,
 
         onConnect: () => {
 

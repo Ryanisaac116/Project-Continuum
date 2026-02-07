@@ -29,7 +29,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path.startsWith("/auth/")
+        return path.startsWith("/api/auth/")
+                || path.startsWith("/auth/")
                 || path.startsWith("/dev/auth/")
                 || path.equals("/ping");
     }
@@ -58,24 +59,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             Long userId = jwtUtil.extractUserId(token);
             String jwtSessionToken = jwtUtil.extractSessionToken(token);
+            Optional<User> userOpt = userRepository.findById(userId);
 
-            // Validate session token against database
-            if (jwtSessionToken != null) {
-                Optional<User> userOpt = userRepository.findById(userId);
-                if (userOpt.isPresent()) {
-                    User user = userOpt.get();
-                    String dbSessionToken = user.getSessionToken();
+            if (userOpt.isEmpty() || !userOpt.get().isActive()) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write(
+                        "{\"error\":\"account_inactive\",\"message\":\"Account is inactive.\"}");
+                return;
+            }
 
-                    // Session mismatch = user logged in from another device
-                    // Session mismatch = user logged in from another device
-                    if (dbSessionToken == null || !dbSessionToken.equals(jwtSessionToken)) {
-                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                        response.setContentType("application/json");
-                        response.getWriter().write(
-                                "{\"error\":\"session_invalidated\",\"message\":\"Session invalid. Please log in again.\"}");
-                        return;
-                    }
-                }
+            // Enforce server-side session for deterministic logout behavior.
+            if (jwtSessionToken == null) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write(
+                        "{\"error\":\"session_invalidated\",\"message\":\"Session invalid. Please log in again.\"}");
+                return;
+            }
+
+            User user = userOpt.get();
+            String dbSessionToken = user.getSessionToken();
+            if (dbSessionToken == null || !dbSessionToken.equals(jwtSessionToken)) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write(
+                        "{\"error\":\"session_invalidated\",\"message\":\"Session invalid. Please log in again.\"}");
+                return;
             }
 
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
@@ -88,6 +98,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         } catch (Exception e) {
             SecurityContextHolder.clearContext();
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write(
+                    "{\"error\":\"session_invalidated\",\"message\":\"Session invalid. Please log in again.\"}");
             return;
         }
 

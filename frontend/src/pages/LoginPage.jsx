@@ -26,7 +26,7 @@ const LoginPage = () => {
     try {
       await login(userId);
       navigate('/app');
-    } catch (err) {
+    } catch {
       setError('Connection failed. Is the backend running?');
     } finally {
       setIsLoading(false);

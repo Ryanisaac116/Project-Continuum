@@ -9,7 +9,6 @@ import { formatTime, formatDateSeparator, isSameDay } from '../utils/dateUtils';
 import {
     connectChatSocket,
     sendChatMessage,
-    disconnectChatSocket,
     isChatConnected,
     subscribeToPresence,
     addListener
@@ -329,27 +328,6 @@ const ChatPage = () => {
         };
     }, [friendId, socketConnected]);
 
-    // Refresh presence every 15 seconds
-    useEffect(() => {
-        if (!friendId) return;
-
-        const refreshPresence = async () => {
-            try {
-                const res = await apiClient.get(`/presence/${friendId}`);
-                setFriend((prev) => prev ? {
-                    ...prev,
-                    presenceStatus: res.data.status,
-                    lastSeenAt: res.data.lastSeenAt
-                } : prev);
-            } catch (err) {
-                // Ignore
-            }
-        };
-
-        const interval = setInterval(refreshPresence, 15000);
-        return () => clearInterval(interval);
-    }, [friendId]);
-
     const handleSend = (e) => {
         e.preventDefault();
         if (!newMessage.trim() || !socketConnected) return;
@@ -577,7 +555,7 @@ const ChatPage = () => {
 
         try {
             await navigator.clipboard.writeText(text);
-        } catch (err) {
+        } catch {
             // Fallback for mobile/older browsers
             const textarea = document.createElement('textarea');
             textarea.value = text;
@@ -1097,7 +1075,7 @@ const ChatPage = () => {
                             const text = contextMenu.message.content;
                             try {
                                 await navigator.clipboard.writeText(text);
-                            } catch (err) {
+                            } catch {
                                 const textarea = document.createElement('textarea');
                                 textarea.value = text;
                                 document.body.appendChild(textarea);

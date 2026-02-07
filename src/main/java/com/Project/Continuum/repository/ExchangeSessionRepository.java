@@ -50,4 +50,6 @@ public interface ExchangeSessionRepository
                         "AND s.status = 'COMPLETED' " +
                         "AND s.endedAt > :since")
         List<Long> findRecentlyMetUserIds(@Param("userId") Long userId, @Param("since") java.time.Instant since);
+
+        void deleteByUserA_IdOrUserB_Id(Long userAId, Long userBId);
 }

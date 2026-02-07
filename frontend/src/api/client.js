@@ -37,9 +37,6 @@ export const clearAuthState = () => {
  * @returns {string} Full WebSocket URL
  */
 export const getWsUrl = (token) => {
-  // Use API_BASE_URL to determine the WebSocket backend
-  // API_BASE_URL example: "https://project-continuum.onrender.com/api" or "/api"
-
   let wsUrl;
 
   if (API_BASE_URL.startsWith('http')) {
@@ -91,24 +88,32 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       const data = error.response?.data;
-      console.log('[API] 401 error:', data);
+      const errorCode = data?.error;
+      const skipAuthRedirect = Boolean(error.config?.skipAuthRedirect);
 
-      // Check for session_invalidated error (logged in elsewhere)
-      if (data?.error === 'session_invalidated') {
-        console.log('[API] Session invalidated - logging out');
-        clearAuthState();
-        alert('You were logged out because your account was used on another device.');
-        window.location.href = '/login';
-        // Prevent further processing
-        return new Promise(() => { });
+      console.log('[API] 401 error:', data);
+      if (skipAuthRedirect) {
+        return Promise.reject(error);
       }
 
-      // Standard 401 - clear auth state and let ProtectedRoute handle navigation
-      clearAuthState();
+      // Force logout only when backend explicitly invalidates the session/account.
+      if (errorCode === 'session_invalidated' || errorCode === 'account_inactive') {
+        clearAuthState();
+
+        if (errorCode === 'session_invalidated') {
+          alert(data?.message || 'Your session is no longer valid. Please log in again.');
+        } else if (errorCode === 'account_inactive') {
+          alert(data?.message || 'Your account is inactive.');
+        }
+
+        window.location.href = '/login';
+        // Prevent caller chains from continuing with stale state.
+        return new Promise(() => { });
+      }
     }
+
     return Promise.reject(error);
   }
 );
 
 export default apiClient;
-

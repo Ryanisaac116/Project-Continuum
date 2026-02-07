@@ -48,4 +48,6 @@ public interface CallSessionRepository extends JpaRepository<CallSession, Long> 
         default boolean hasActiveCall(Long userId) {
                 return !findActiveCallsByUserId(userId, List.of(CallStatus.RINGING, CallStatus.ACCEPTED)).isEmpty();
         }
+
+        void deleteByCaller_IdOrReceiver_Id(Long callerId, Long receiverId);
 }

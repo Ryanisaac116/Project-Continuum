@@ -1,6 +1,8 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { addListener } from '../ws/chatSocket';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { addListener, onConnectionChange } from '../ws/chatSocket';
 import apiClient, { getToken } from '../api/client';
+import { useAuth } from '../auth/AuthContext';
 
 const NotificationContext = createContext(null);
 
@@ -13,27 +15,42 @@ export const useNotifications = () => {
 };
 
 export const NotificationProvider = ({ children }) => {
+    const { user, loading: authLoading } = useAuth();
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [toasts, setToasts] = useState([]);
+    const syncInFlightRef = useRef(false);
+
+    const syncNotifications = useCallback(async () => {
+        if (authLoading || !user) return;
+
+        const token = getToken();
+        if (!token || syncInFlightRef.current) return;
+
+        syncInFlightRef.current = true;
+        try {
+            const res = await apiClient.get('/notifications?limit=50');
+            setNotifications(res.data.notifications || []);
+            setUnreadCount(res.data.unreadCount || 0);
+        } catch (err) {
+            console.error('Failed to fetch notifications:', err);
+        } finally {
+            syncInFlightRef.current = false;
+        }
+    }, [authLoading, user]);
 
     // Fetch notifications on mount
     useEffect(() => {
-        const fetchNotifications = async () => {
-            try {
-                const token = getToken();
-                if (!token) return;
+        syncNotifications();
+    }, [syncNotifications]);
 
-                const res = await apiClient.get('/notifications?limit=50');
-                setNotifications(res.data.notifications || []);
-                setUnreadCount(res.data.unreadCount || 0);
-            } catch (err) {
-                console.error('Failed to fetch notifications:', err);
-            }
-        };
-
-        fetchNotifications();
-    }, []);
+    useEffect(() => {
+        if (!user && !authLoading) {
+            setNotifications([]);
+            setUnreadCount(0);
+            setToasts([]);
+        }
+    }, [user, authLoading]);
 
     // Handle incoming WebSocket notification
     const handleNotification = useCallback((notification) => {
@@ -100,6 +117,30 @@ export const NotificationProvider = ({ children }) => {
         const unsubscribe = addListener('notification', handleNotification);
         return () => unsubscribe();
     }, [handleNotification]);
+
+    // Resync on reconnect/focus/visibility without continuous background polling.
+    useEffect(() => {
+        const unsubscribeConnection = onConnectionChange((connected) => {
+            if (connected) {
+                syncNotifications();
+            }
+        });
+
+        const syncIfVisible = () => {
+            if (document.visibilityState === 'visible') {
+                syncNotifications();
+            }
+        };
+
+        window.addEventListener('focus', syncIfVisible);
+        document.addEventListener('visibilitychange', syncIfVisible);
+
+        return () => {
+            unsubscribeConnection();
+            window.removeEventListener('focus', syncIfVisible);
+            document.removeEventListener('visibilitychange', syncIfVisible);
+        };
+    }, [syncNotifications]);
 
     // Mark single notification as read
     const markAsRead = async (notificationId) => {

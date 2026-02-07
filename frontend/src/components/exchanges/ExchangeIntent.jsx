@@ -19,22 +19,6 @@ const ExchangeIntent = () => {
   const [selectedTeachId, setSelectedTeachId] = useState('');
   const [selectedLearnId, setSelectedLearnId] = useState('');
 
-  useEffect(() => {
-    loadSkills();
-  }, []);
-
-  const loadSkills = async () => {
-    try {
-      const { data } = await profileApi.getUserSkills();
-      setSkills(data);
-      computeEligibleCategories(data);
-    } catch (err) {
-      console.error("Failed to load skills", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const computeEligibleCategories = (allSkills) => {
     // 1. Group skills by category
     const catMap = allSkills.reduce((acc, s) => {
@@ -56,6 +40,22 @@ const ExchangeIntent = () => {
 
     setEligibleCategories(eligible);
   };
+
+  useEffect(() => {
+    const loadSkills = async () => {
+      try {
+        const { data } = await profileApi.getUserSkills();
+        setSkills(data);
+        computeEligibleCategories(data);
+      } catch (err) {
+        console.error("Failed to load skills", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSkills();
+  }, []);
 
   const handleStartExchange = () => {
     if (!selectedCategory || !selectedTeachId || !selectedLearnId) return;

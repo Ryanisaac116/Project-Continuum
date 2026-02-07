@@ -1,68 +1,154 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import axios from 'axios';
 import apiClient, { getToken, clearAuthState } from '../api/client';
+import { authApi } from '../api/authApi';
 
 const AuthContext = createContext(null);
+const isDevAuthMode = import.meta.env.VITE_AUTH_MODE === 'dev';
+
+const isTerminalAuthError = (error) => {
+  const status = error?.response?.status;
+  const code = error?.response?.data?.error;
+  return status === 401 && (code === 'session_invalidated' || code === 'account_inactive');
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 🔐 Initialize auth ONCE on app load
-  useEffect(() => {
-    const initAuth = async () => {
-      const token = getToken();
-
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const { data } = await apiClient.get('/users/me');
-        setUser(data);
-      } catch (err) {
-        console.error('Auth init failed:', err);
-        clearAuthState();
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initAuth();
+  const clearSession = useCallback(() => {
+    clearAuthState();
+    setUser(null);
   }, []);
 
-  // 🔄 Update local user presence (called by useTabPresence)
-  const updateUserPresence = useCallback((status) => {
-    setUser(prev => {
-      if (!prev) return null;
-      return { ...prev, presenceStatus: status };
-    });
+  const persistUser = useCallback((userData) => {
+    setUser(userData);
+    localStorage.setItem('userId', String(userData.id));
+    localStorage.setItem('user', JSON.stringify(userData));
   }, []);
 
-  // 🚪 DEV LOGIN (ID-based)
-  const login = async (userId) => {
+  const restoreDevSession = useCallback(async () => {
+    if (!isDevAuthMode) return false;
+
+    const cachedUserIdRaw = localStorage.getItem('userId');
+    const cachedUserId = Number(cachedUserIdRaw);
+    if (!cachedUserIdRaw || Number.isNaN(cachedUserId)) {
+      return false;
+    }
+
     try {
-      // 1️⃣ Dev login (NO apiClient here)
-      const { data } = await axios.post('/api/auth/dev/login', { userId });
-
-      // 2️⃣ Store token immediately
+      const { data } = await authApi.devLogin(cachedUserId);
       localStorage.setItem('token', data.token);
-      localStorage.setItem('userId', data.userId);
 
-      // 🔥 3️⃣ FIRST authenticated call: pass token explicitly
       const userRes = await apiClient.get('/users/me', {
         headers: {
           Authorization: `Bearer ${data.token}`,
         },
       });
 
-      // ⚡ Optimistic Update: User is definitely ONLINE now.
-      const userData = { ...userRes.data, presenceStatus: 'ONLINE' };
-      console.log('[AuthContext] Login successful. Optimistically setting ONLINE:', userData);
+      persistUser({ ...userRes.data, presenceStatus: 'ONLINE' });
+      return true;
+    } catch (err) {
+      console.error('Dev session restore failed:', err);
+      return false;
+    }
+  }, [persistUser]);
 
-      setUser(userData);
+  useEffect(() => {
+    const initAuth = async () => {
+      const token = getToken();
+
+      if (!token) {
+        const restored = await restoreDevSession();
+        if (!restored) {
+          setUser(null);
+        }
+        setLoading(false);
+        return;
+      }
+
+      let hasCachedUser = false;
+      const cachedUserRaw = localStorage.getItem('user');
+      if (cachedUserRaw) {
+        try {
+          setUser(JSON.parse(cachedUserRaw));
+          hasCachedUser = true;
+        } catch {
+          localStorage.removeItem('user');
+        }
+      }
+
+      try {
+        const { data } = await authApi.getMe();
+        persistUser(data);
+      } catch (err) {
+        console.error('Auth init failed:', err);
+
+        if (isTerminalAuthError(err)) {
+          const restored = await restoreDevSession();
+          if (!restored) {
+            clearSession();
+          }
+        } else if (!hasCachedUser) {
+          // Keep token for retryable failures, but avoid showing protected UI with no user.
+          setUser(null);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initAuth();
+  }, [clearSession, persistUser, restoreDevSession]);
+
+  // Keep auth state in sync across tabs/windows without needing refresh.
+  useEffect(() => {
+    const handleStorageChange = (event) => {
+      if (event.key && !['token', 'user', 'userId'].includes(event.key)) return;
+
+      const token = getToken();
+      if (!token) {
+        setUser(null);
+        return;
+      }
+
+      const cachedUserRaw = localStorage.getItem('user');
+      if (!cachedUserRaw) return;
+
+      try {
+        setUser(JSON.parse(cachedUserRaw));
+      } catch {
+        localStorage.removeItem('user');
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  const updateUserPresence = useCallback((status) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      const next = { ...prev, presenceStatus: status };
+      localStorage.setItem('user', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const login = async (userId) => {
+    try {
+      const { data } = await authApi.devLogin(Number(userId));
+
+      localStorage.setItem('token', data.token);
+
+      const userRes = await apiClient.get('/users/me', {
+        headers: {
+          Authorization: `Bearer ${data.token}`,
+        },
+      });
+
+      const userData = { ...userRes.data, presenceStatus: 'ONLINE' };
+      persistUser(userData);
     } catch (err) {
       console.error('Login failed:', {
         status: err.response?.status,
@@ -73,47 +159,69 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // 🌐 OAUTH LOGIN (Token based)
   const handleOAuthLogin = useCallback(async (token) => {
     try {
-      // 1. Store token
       localStorage.setItem('token', token);
 
-      // 2. Fetch User Profile using new token
       const userRes = await apiClient.get('/users/me', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      // 3. Set User
       const userData = { ...userRes.data, presenceStatus: 'ONLINE' };
-      setUser(userData);
-      localStorage.setItem('userId', userData.id);
+      persistUser(userData);
 
       return userData;
     } catch (err) {
       console.error('OAuth Login processing failed:', err);
-      clearAuthState();
+      clearSession();
       throw err;
     }
-  }, []);
+  }, [clearSession, persistUser]);
 
   const logout = async () => {
     try {
-      if (user?.id) {
-        // 🔥 Call backend to mark user OFFLINE before clearing token
-        await apiClient.post(`/dev/auth/logout/${user.id}`);
-      }
+      await authApi.logout();
     } catch (err) {
       console.error('Logout API failed:', err);
-      // Continue with local logout even if API fails
+    } finally {
+      // Always clear local state on explicit user logout click.
+      clearSession();
     }
+  };
 
-    clearAuthState();
-    setUser(null);
+  const deactivateAccount = async () => {
+    try {
+      await authApi.deactivateAccount();
+      clearSession();
+    } catch (err) {
+      console.error('Deactivate account failed:', err);
+      throw err;
+    }
+  };
+
+  const deleteAccount = async () => {
+    try {
+      await authApi.deleteAccount();
+      clearSession();
+    } catch (err) {
+      console.error('Delete account failed:', err);
+      throw err;
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, handleOAuthLogin, logout, updateUserPresence }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        handleOAuthLogin,
+        logout,
+        deactivateAccount,
+        deleteAccount,
+        updateUserPresence,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

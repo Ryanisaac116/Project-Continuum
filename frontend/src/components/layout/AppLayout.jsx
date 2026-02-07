@@ -36,7 +36,7 @@ const ProfileIcon = ({ active }) => (
 );
 
 export const AppLayout = ({ children }) => {
-    const { user, logout } = useAuth();
+    const { user } = useAuth();
     const location = useLocation();
 
     const navItems = [

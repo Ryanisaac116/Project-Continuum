@@ -51,18 +51,23 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
                     String jwtSessionToken = jwtUtil.extractSessionToken(token);
 
                     if (userId != null) {
-                        // One-Device Login Check
-                        if (jwtSessionToken != null) {
-                            var userOpt = userRepository.findById(userId);
-                            if (userOpt.isPresent()) {
-                                String dbSessionToken = userOpt.get().getSessionToken();
-                                if (dbSessionToken == null || !dbSessionToken.equals(jwtSessionToken)) {
-                                    System.err.println("[WebSocketHandshake] Session mismatch for user " + userId
-                                            + ". Rejecting.");
-                                    response.setStatusCode(org.springframework.http.HttpStatus.UNAUTHORIZED);
-                                    return false;
-                                }
-                            }
+                        var userOpt = userRepository.findById(userId);
+                        if (userOpt.isEmpty() || !userOpt.get().isActive()) {
+                            response.setStatusCode(org.springframework.http.HttpStatus.UNAUTHORIZED);
+                            return false;
+                        }
+
+                        if (jwtSessionToken == null) {
+                            response.setStatusCode(org.springframework.http.HttpStatus.UNAUTHORIZED);
+                            return false;
+                        }
+
+                        String dbSessionToken = userOpt.get().getSessionToken();
+                        if (dbSessionToken == null || !dbSessionToken.equals(jwtSessionToken)) {
+                            System.err.println("[WebSocketHandshake] Session mismatch for user " + userId
+                                    + ". Rejecting.");
+                            response.setStatusCode(org.springframework.http.HttpStatus.UNAUTHORIZED);
+                            return false;
                         }
 
                         // Store userId in session attributes for later use
@@ -79,14 +84,15 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
                     }
                 } catch (Exception e) {
                     System.err.println("[WebSocketHandshake] Token validation failed: " + e.getMessage());
+                    response.setStatusCode(org.springframework.http.HttpStatus.UNAUTHORIZED);
+                    return false;
                 }
             }
         }
 
-        // Allow connection but without authentication
-        // (will fail on protected operations)
-
-        return true;
+        // Reject unauthenticated WebSocket handshakes.
+        response.setStatusCode(org.springframework.http.HttpStatus.UNAUTHORIZED);
+        return false;
     }
 
     @Override

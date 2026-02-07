@@ -53,12 +53,12 @@ export function useTabPresence(shouldRemainOnline = false) {
         // Initial presence
         updatePresence(document.visibilityState === 'visible');
 
-        // Heartbeat: Ping server every 30s to stay ONLINE while visible
+        // Heartbeat: low-frequency keepalive to reduce backend noise.
         const heartbeatInterval = setInterval(() => {
             if (document.visibilityState === 'visible' || shouldRemainOnline) {
                 presenceApi.heartbeat().catch(() => { });
             }
-        }, 30000);
+        }, 180000);
 
         document.addEventListener('visibilitychange', handleVisibility);
 

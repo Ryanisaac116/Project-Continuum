@@ -33,7 +33,7 @@ export const AddSkillForm = ({ onSuccess, onCancel }) => {
                 level: level
             });
             onSuccess();
-        } catch (err) {
+        } catch {
             alert("Failed to add skill");
         } finally {
             setLoading(false);

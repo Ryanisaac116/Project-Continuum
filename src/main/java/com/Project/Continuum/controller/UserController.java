@@ -28,9 +28,21 @@ public class UserController {
         return userService.updateUser(userId, request);
     }
 
-    @DeleteMapping("/me")
+    @PostMapping("/logout")
+    public void logout() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        userService.logout(userId);
+    }
+
+    @PatchMapping("/me/deactivate")
     public void deactivateUser() {
         Long userId = SecurityUtils.getCurrentUserId();
         userService.deactivateUser(userId);
+    }
+
+    @DeleteMapping("/me")
+    public void deleteUser() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        userService.deleteUser(userId);
     }
 }
