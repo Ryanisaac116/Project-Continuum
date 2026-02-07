@@ -21,7 +21,7 @@ spring:
 # ===============================
 jwt:
   secret: continuum-dev-secret-key-change-in-prod
-  expiration-ms: 2592000000
+  expiration: 30d
 
 # ===============================
 # WEB PUSH (VAPID) CONFIG (DEV)

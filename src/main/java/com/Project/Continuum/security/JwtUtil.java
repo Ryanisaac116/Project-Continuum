@@ -6,20 +6,21 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
+import java.time.Duration;
 import java.util.Date;
 
 @Component
 public class JwtUtil {
 
     private final Key key;
-    private final long expirationMs;
+    private final Duration expiration;
 
     public JwtUtil(
             @Value("${jwt.secret}") String secret,
-            @Value("${jwt.expiration-ms}") long expirationMs) {
+            @Value("${jwt.expiration}") Duration expiration) {
 
         this.key = Keys.hmacShaKeyFor(secret.getBytes());
-        this.expirationMs = expirationMs;
+        this.expiration = expiration;
     }
 
     // Original method for backward compatibility (no session token)
@@ -32,7 +33,7 @@ public class JwtUtil {
         var builder = Jwts.builder()
                 .setSubject(userId.toString())
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expirationMs));
+                .setExpiration(new Date(System.currentTimeMillis() + expiration.toMillis()));
 
         if (sessionToken != null) {
             builder.claim("session_token", sessionToken);

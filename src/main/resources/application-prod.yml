@@ -30,7 +30,7 @@ spring:
 # ===============================
 jwt:
   secret: ${JWT_SECRET}
-  expiration-ms: 3600000
+  expiration: 30d
 
 # ===============================
 # WEB PUSH (VAPID) CONFIG (PROD)
