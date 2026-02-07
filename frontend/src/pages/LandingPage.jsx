@@ -1,9 +1,23 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
+import { useAuth } from '../auth/AuthContext';
 
 const LandingPage = () => {
     const navigate = useNavigate();
+    const { user, loading } = useAuth();
+
+    // Redirect to app if already logged in
+    useEffect(() => {
+        if (!loading && user) {
+            navigate('/app', { replace: true });
+        }
+    }, [user, loading, navigate]);
+
+    // Show nothing while checking auth to prevent flash
+    if (loading) {
+        return null;
+    }
 
     return (
         <div className="min-h-screen bg-black text-gray-100 font-sans selection:bg-blue-500/30">
