@@ -134,6 +134,7 @@ public class UserService {
                 user.getName(),
                 user.getBio(),
                 user.getProfileImageUrl(),
-                user.getPresenceStatus());
+                user.getPresenceStatus(),
+                user.getRole() != null ? user.getRole().name() : "USER");
     }
 }

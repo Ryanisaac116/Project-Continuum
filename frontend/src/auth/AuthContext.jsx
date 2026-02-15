@@ -4,7 +4,8 @@ import apiClient, { getToken, clearAuthState } from '../api/client';
 import { authApi } from '../api/authApi';
 
 const AuthContext = createContext(null);
-const isDevAuthMode = import.meta.env.VITE_AUTH_MODE === 'dev';
+const authMode = String(import.meta.env.VITE_AUTH_MODE || 'dev').toLowerCase();
+const isDevAuthMode = authMode !== 'prod';
 
 const isTerminalAuthError = (error) => {
   const status = error?.response?.status;
@@ -67,17 +68,8 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      let hasCachedUser = false;
-      const cachedUserRaw = localStorage.getItem('user');
-      if (cachedUserRaw) {
-        try {
-          setUser(JSON.parse(cachedUserRaw));
-          hasCachedUser = true;
-        } catch {
-          localStorage.removeItem('user');
-        }
-      }
-
+      // Don't use cached user data for role-sensitive decisions.
+      // Always wait for fresh data from the API before setting loading=false.
       try {
         const { data } = await authApi.getMe();
         persistUser(data);
@@ -89,9 +81,19 @@ export const AuthProvider = ({ children }) => {
           if (!restored) {
             clearSession();
           }
-        } else if (!hasCachedUser) {
-          // Keep token for retryable failures, but avoid showing protected UI with no user.
-          setUser(null);
+        } else {
+          // On non-terminal errors, try to use cached user as fallback
+          const cachedUserRaw = localStorage.getItem('user');
+          if (cachedUserRaw) {
+            try {
+              setUser(JSON.parse(cachedUserRaw));
+            } catch {
+              localStorage.removeItem('user');
+              setUser(null);
+            }
+          } else {
+            setUser(null);
+          }
         }
       } finally {
         setLoading(false);
@@ -137,7 +139,12 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (userId) => {
     try {
-      const { data } = await authApi.devLogin(Number(userId));
+      const parsedUserId = Number(userId);
+      if (!Number.isInteger(parsedUserId) || parsedUserId <= 0) {
+        throw new Error('Please enter a valid positive numeric User ID.');
+      }
+
+      const { data } = await authApi.devLogin(parsedUserId);
 
       localStorage.setItem('token', data.token);
 
@@ -209,11 +216,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Compute isAdmin from user role (backend sends role in /users/me response)
+  const isAdmin = user?.role === 'ADMIN';
+
   return (
     <AuthContext.Provider
       value={{
         user,
         loading,
+        isAdmin,
         login,
         handleOAuthLogin,
         logout,

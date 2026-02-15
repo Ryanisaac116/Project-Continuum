@@ -44,6 +44,13 @@ export const RealTimeProvider = ({ children }) => {
     const [recentlyMet, setRecentlyMet] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [hasFetched, setHasFetched] = useState(false);
+    const [eventVersion, setEventVersion] = useState({
+        all: 0,
+        friend: 0,
+        session: 0,
+        match: 0,
+        connection: 0,
+    });
 
     // Refs
     const presenceUnsubsRef = useRef([]);
@@ -56,6 +63,14 @@ export const RealTimeProvider = ({ children }) => {
     // Derived values
     const friendsOnline = friends.filter(f => f.presenceStatus === 'ONLINE').length;
     const friendsInSession = friends.filter(f => f.presenceStatus === 'IN_SESSION').length;
+
+    const bumpEventVersion = useCallback((eventType) => {
+        setEventVersion(prev => ({
+            ...prev,
+            all: (prev.all || 0) + 1,
+            [eventType]: (prev[eventType] || 0) + 1,
+        }));
+    }, []);
 
     // ==================== DATA FETCHING ====================
 
@@ -199,6 +214,7 @@ export const RealTimeProvider = ({ children }) => {
 
     const handleFriendEvent = useCallback((event) => {
         console.log('[RealTime] Friend event:', event);
+        bumpEventVersion('friend');
 
         switch (event.event || event.type) {
             case 'FRIEND_REQUEST_RECEIVED':
@@ -246,22 +262,24 @@ export const RealTimeProvider = ({ children }) => {
                 // but doing it on full cleanup/reconnect is safer for now.
                 break;
         }
-    }, []);
+    }, [bumpEventVersion]);
 
     const handleSessionEvent = useCallback((event) => {
         console.log('[RealTime] Session event:', event);
+        bumpEventVersion('session');
         // Refresh recently met on any session activity that implies interaction
         if (['SESSION_STARTED', 'SESSION_ENDED', 'MATCH_FOUND'].includes(event.type) || ['SESSION_STARTED', 'SESSION_ENDED', 'MATCH_FOUND'].includes(event.event)) {
             refreshRecentlyMet();
         }
-    }, [refreshRecentlyMet]);
+    }, [bumpEventVersion, refreshRecentlyMet]);
 
     const handleMatchEvent = useCallback((event) => {
         console.log('[RealTime] Match event:', event);
+        bumpEventVersion('match');
         if (event.type === 'MATCH_FOUND') {
             refreshRecentlyMet();
         }
-    }, [refreshRecentlyMet]);
+    }, [bumpEventVersion, refreshRecentlyMet]);
 
     // ==================== WEBSOCKET CONNECTION ====================
 
@@ -269,10 +287,12 @@ export const RealTimeProvider = ({ children }) => {
         const token = getToken();
         if (!token || !isAuthenticated) return;
 
+
         if (isSettingUpRef.current) return;
         isSettingUpRef.current = true;
 
-        console.log('[RealTime] Setting up WebSocket...');
+        const isAdmin = user?.role === 'ADMIN';
+        console.log('[RealTime] Setting up WebSocket. User Role:', user?.role, 'IsAdmin:', isAdmin);
 
         connectChatSocket(
             token,
@@ -287,7 +307,8 @@ export const RealTimeProvider = ({ children }) => {
                 console.error('[RealTime] WebSocket error:', error);
                 setConnectionError(error);
                 isSettingUpRef.current = false;
-            }
+            },
+            isAdmin
         );
 
         // Register event listeners
@@ -297,7 +318,7 @@ export const RealTimeProvider = ({ children }) => {
 
         listenersRef.current.push(friendUnsub, sessionUnsub, matchUnsub);
 
-    }, [isAuthenticated, handleFriendEvent, handleSessionEvent, handleMatchEvent]);
+    }, [isAuthenticated, user, handleFriendEvent, handleSessionEvent, handleMatchEvent]);
 
     // ==================== LIFECYCLE ====================
 
@@ -311,6 +332,7 @@ export const RealTimeProvider = ({ children }) => {
 
             // Run expensive sync logic only on real reconnect transitions.
             if (connected && !wasConnected) {
+                bumpEventVersion('connection');
                 if (friends.length > 0) {
                     // Re-setup subscriptions: Clean old ones first to prevent duplicates
                     cleanupPresenceSubscriptions();
@@ -322,7 +344,7 @@ export const RealTimeProvider = ({ children }) => {
         });
 
         return () => unsub();
-    }, [friends.length, setupPresenceSubscriptions, cleanupPresenceSubscriptions, syncDataInBackground]);
+    }, [friends.length, setupPresenceSubscriptions, cleanupPresenceSubscriptions, syncDataInBackground, bumpEventVersion]);
 
     // Fetch data when user is available
     useEffect(() => {
@@ -334,6 +356,13 @@ export const RealTimeProvider = ({ children }) => {
             setRecentlyMet([]);
             setHasFetched(false);
             setIsLoading(true);
+            setEventVersion({
+                all: 0,
+                friend: 0,
+                session: 0,
+                match: 0,
+                connection: 0,
+            });
         }
     }, [user, hasFetched, fetchAllData]);
 
@@ -358,6 +387,17 @@ export const RealTimeProvider = ({ children }) => {
         }
     }, [isConnected, friends.length, setupPresenceSubscriptions]);
 
+    // Upgrade to admin subscription when user role becomes ADMIN after connection
+    useEffect(() => {
+        if (isConnected && user?.role === 'ADMIN') {
+            const token = getToken();
+            if (token) {
+                console.log('[RealTime] Upgrading to Admin subscriptions (role detected as ADMIN)');
+                connectChatSocket(token, () => { }, () => { }, () => { }, true);
+            }
+        }
+    }, [isConnected, user?.role]);
+
     // Keep data fresh on focus/visibility transitions without continuous polling.
     useEffect(() => {
         if (!isAuthenticated) return;
@@ -375,6 +415,19 @@ export const RealTimeProvider = ({ children }) => {
             window.removeEventListener('focus', syncIfVisible);
             document.removeEventListener('visibilitychange', syncIfVisible);
         };
+    }, [isAuthenticated, syncDataInBackground]);
+
+    // Safety net: periodic background sync to keep UI current even if an event is missed.
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        const timer = window.setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                syncDataInBackground();
+            }
+        }, 15000);
+
+        return () => window.clearInterval(timer);
     }, [isAuthenticated, syncDataInBackground]);
 
     // Cleanup on unmount
@@ -397,6 +450,7 @@ export const RealTimeProvider = ({ children }) => {
         friendsOnline,
         friendsInSession,
         pendingRequestCount: pendingRequests.length,
+        eventVersion,
         refreshFriends,
         refreshRequests,
         refreshRecentlyMet,

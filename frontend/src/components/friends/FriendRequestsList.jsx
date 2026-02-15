@@ -1,4 +1,6 @@
-import { Badge } from '../ui/Badge';
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
 /**
  * FriendRequestsList - Display pending incoming friend requests
@@ -28,17 +30,17 @@ const FriendRequestsList = ({ requests, onAccept, onReject, pendingActions = {} 
                 const isAnyPending = isAccepting || isRejecting;
 
                 return (
-                    <li key={request.requesterId} className="p-4 flex items-center justify-between">
+                    <li key={request.requesterId} className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-muted/50 transition-colors">
                         {/* User Info */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-4">
                             {/* Avatar placeholder */}
-                            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-500 font-medium border border-blue-200 dark:border-blue-500/20 transition-colors">
+                            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-secondary flex items-center justify-center font-bold text-secondary-foreground text-sm">
                                 {request.requesterName?.charAt(0)?.toUpperCase() || '?'}
                             </div>
 
                             <div>
-                                <div className="font-medium text-gray-900 dark:text-white transition-colors">{request.requesterName}</div>
-                                <div className="text-xs text-gray-500 dark:text-slate-500 transition-colors">
+                                <div className="font-medium">{request.requesterName}</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">
                                     {request.requestedAt
                                         ? `Requested ${formatRelativeTime(request.requestedAt)}`
                                         : 'Pending request'
@@ -48,29 +50,35 @@ const FriendRequestsList = ({ requests, onAccept, onReject, pendingActions = {} 
                         </div>
 
                         {/* Presence + Actions */}
-                        <div className="flex items-center gap-2">
-                            <Badge status={request.presence}>{request.presence || 'OFFLINE'}</Badge>
+                        <div className="flex items-center gap-3">
+                            <div className="hidden sm:block">
+                                <Badge variant={request.presence === 'ONLINE' ? 'default' : 'secondary'} className={cn(
+                                    request.presence === 'ONLINE' && "bg-green-500 hover:bg-green-600"
+                                )}>
+                                    {request.presence || 'OFFLINE'}
+                                </Badge>
+                            </div>
 
-                            <button
+                            <Button
+                                size="sm"
                                 onClick={() => onAccept(request.requesterId, request.requesterName, request.presence)}
                                 disabled={isAnyPending}
-                                className={`px-3 py-1 text-sm rounded-lg transition ${isAnyPending
-                                    ? 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 cursor-not-allowed border border-gray-200 dark:border-slate-700'
-                                    : 'bg-green-600 text-white hover:bg-green-500 shadow-lg shadow-green-500/20'
-                                    }`}
+                                className={cn(
+                                    "bg-green-600 hover:bg-green-700",
+                                    isAnyPending && "opacity-50"
+                                )}
                             >
                                 {isAccepting ? 'Accepting...' : 'Accept'}
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
                                 onClick={() => onReject(request.requesterId)}
                                 disabled={isAnyPending}
-                                className={`px-3 py-1 text-sm rounded-lg transition ${isAnyPending
-                                    ? 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 cursor-not-allowed border border-gray-200 dark:border-slate-700'
-                                    : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700'
-                                    }`}
+                                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                             >
                                 {isRejecting ? 'Declining...' : 'Decline'}
-                            </button>
+                            </Button>
                         </div>
                     </li>
                 );

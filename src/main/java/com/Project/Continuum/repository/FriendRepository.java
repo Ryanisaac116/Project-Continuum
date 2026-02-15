@@ -21,4 +21,9 @@ public interface FriendRepository extends JpaRepository<Friend, Long> {
     List<Friend> findByUser1_IdOrUser2_Id(Long userId1, Long userId2);
 
     void deleteByUser1_IdOrUser2_Id(Long userId1, Long userId2);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(f) FROM Friend f WHERE (f.user1.id = :userId OR f.user2.id = :userId) AND f.status = :status")
+    long countByUserIdAndStatus(
+            @org.springframework.data.repository.query.Param("userId") Long userId,
+            @org.springframework.data.repository.query.Param("status") com.Project.Continuum.enums.FriendStatus status);
 }

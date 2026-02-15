@@ -8,15 +8,16 @@ import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 
 import java.security.Principal;
-import java.util.Collections;
 import java.util.Map;
 
 /**
  * Custom Handshake Handler - Determines the Principal (user identity) for
  * WebSocket sessions.
  * 
- * Uses the userId stored in session attributes (from HandshakeInterceptor) to
- * create the Principal.
+ * Uses the authentication stored in session attributes (from
+ * HandshakeInterceptor)
+ * which includes the user's role authorities. This is critical for role-based
+ * topic subscriptions (e.g., /topic/admin/*).
  */
 @Component
 public class WebSocketPrincipalHandler extends DefaultHandshakeHandler {
@@ -27,17 +28,34 @@ public class WebSocketPrincipalHandler extends DefaultHandshakeHandler {
             @NonNull WebSocketHandler wsHandler,
             @NonNull Map<String, Object> attributes) {
 
-        Long userId = (Long) attributes.get("userId");
-
-        if (userId != null) {
-            // Create authentication with userId as principal name
+        // Use the auth token created by WebSocketHandshakeInterceptor,
+        // which includes the user's role authorities (e.g., ROLE_ADMIN).
+        // This is critical: without role authorities, the channel interceptor
+        // will reject subscriptions to /topic/admin/* destinations.
+        Object simpUser = attributes.get("simpUser");
+        if (simpUser instanceof UsernamePasswordAuthenticationToken auth) {
+            // Wrap to override getName() for STOMP user destinations
+            Long userId = (Long) auth.getPrincipal();
             return new UsernamePasswordAuthenticationToken(
                     userId,
                     null,
-                    Collections.emptyList()) {
+                    auth.getAuthorities()) { // Preserve the role authorities!
                 @Override
                 public String getName() {
-                    // Return userId as string - this is what STOMP uses for user destinations
+                    return userId.toString();
+                }
+            };
+        }
+
+        // Fallback: check for userId in attributes
+        Long userId = (Long) attributes.get("userId");
+        if (userId != null) {
+            return new UsernamePasswordAuthenticationToken(
+                    userId,
+                    null,
+                    java.util.Collections.emptyList()) {
+                @Override
+                public String getName() {
                     return userId.toString();
                 }
             };

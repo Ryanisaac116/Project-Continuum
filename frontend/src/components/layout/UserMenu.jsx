@@ -1,6 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
+import { Button } from "@/components/ui/button"
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
+import SupportModal from '../support/SupportModal';
+import {
+    User,
+    Settings,
+    LogOut,
+    HelpCircle,
+    ChevronDown
+} from 'lucide-react';
 
 /**
  * UserMenu - Dropdown menu for user actions
@@ -9,6 +18,7 @@ import { useAuth } from '../../auth/AuthContext';
 const UserMenu = () => {
     const { user, logout } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
+    const [isSupportOpen, setIsSupportOpen] = useState(false);
     const menuRef = useRef(null);
 
     // Close on outside click
@@ -39,69 +49,97 @@ const UserMenu = () => {
     return (
         <div className="relative" ref={menuRef}>
             {/* Avatar Button */}
-            <button
+            <Button
+                variant="ghost"
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 p-1 pl-2 pr-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors border border-transparent hover:border-gray-200 dark:hover:border-slate-700"
+                className={`flex items-center gap-2 p-1 pl-2 pr-1 rounded-full transition-all duration-300 border h-auto ${isOpen
+                        ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800'
+                        : 'hover:bg-slate-100 dark:hover:bg-slate-800 border-transparent hover:border-slate-200 dark:hover:border-slate-700'
+                    }`}
             >
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-200 hidden sm:block max-w-[100px] truncate">
-                    {user.name}
-                </span>
+                <div className="flex flex-col items-end hidden sm:block mr-1">
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 leading-tight max-w-[100px] truncate">
+                        {user.name}
+                    </span>
+                </div>
 
-                <div className="w-8 h-8 rounded-full bg-blue-600 dark:bg-blue-500 text-white flex items-center justify-center text-xs font-bold shadow-sm ring-2 ring-white dark:ring-slate-950">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center text-xs font-bold shadow-md ring-2 ring-white dark:ring-slate-950 group-hover:ring-indigo-200 dark:group-hover:ring-indigo-900 transition-all">
                     {getInitials(user.name)}
                 </div>
-            </button>
+
+                <ChevronDown className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+            </Button>
 
             {/* Dropdown Menu */}
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-gray-100 dark:border-slate-800 py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute right-0 mt-3 w-64 glass-panel rounded-2xl z-50 animate-fade-in-up origin-top-right overflow-hidden shadow-2xl ring-1 ring-black/5">
                     {/* Header (Mobile only really, but good context) */}
-                    <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-800 sm:hidden">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-slate-400 truncate">{user.email}</p>
+                    <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-sm">
+                        <p className="font-bold text-slate-900 dark:text-white truncate">{user.name}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate font-medium">{user.email}</p>
                     </div>
 
-                    <div className="py-1">
+                    <div className="p-2 space-y-1">
                         <Link
                             to="/profile"
                             onClick={() => setIsOpen(false)}
-                            className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800"
+                            className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group"
                         >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
+                            <span className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
+                                <User className="w-4 h-4" />
+                            </span>
                             Your Profile
                         </Link>
 
                         <Link
                             to="/settings"
                             onClick={() => setIsOpen(false)}
-                            className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800"
+                            className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group"
                         >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.356a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.356 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.356a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
+                            <span className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors">
+                                <Settings className="w-4 h-4" />
+                            </span>
                             Settings
                         </Link>
+
+                        <Button
+                            variant="ghost"
+                            onClick={() => {
+                                setIsOpen(false);
+                                setIsSupportOpen(true);
+                            }}
+                            className="flex w-full justify-start items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group h-auto"
+                        >
+                            <span className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/30 transition-colors">
+                                <HelpCircle className="w-4 h-4" />
+                            </span>
+                            Help & Support
+                        </Button>
                     </div>
 
-                    <div className="border-t border-gray-100 dark:border-slate-800 py-1">
-                        <button
+                    <div className="border-t border-slate-100 dark:border-slate-800/50 p-2 bg-slate-50/30 dark:bg-slate-900/30">
+                        <Button
+                            variant="ghost"
                             onClick={() => {
                                 setIsOpen(false);
                                 logout();
                             }}
-                            className="flex w-full items-center gap-3 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 text-left"
+                            className="flex w-full justify-start items-center gap-3 px-3 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/10 h-auto group"
                         >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                            </svg>
+                            <span className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/10 text-red-500 dark:text-red-400 group-hover:bg-red-100 dark:group-hover:bg-red-900/20 transition-colors">
+                                <LogOut className="w-4 h-4" />
+                            </span>
                             Sign out
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}
+
+            <SupportModal
+                isOpen={isSupportOpen}
+                onClose={() => setIsSupportOpen(false)}
+                type="SUPPORT"
+            />
         </div>
     );
 };

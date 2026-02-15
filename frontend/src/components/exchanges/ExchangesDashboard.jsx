@@ -1,9 +1,11 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Toast } from '../ui/Toast';
+import { Button } from "@/components/ui/button"
 import { useAuth } from '../../auth/AuthContext';
 import { exchangeApi } from '../../api/exchange';
-import { addListener } from '../../ws/chatSocket'; // Import listener
+import useLiveRefresh from '../../hooks/useLiveRefresh';
+import { CheckCircle, Zap, Users, AlertCircle, Info } from 'lucide-react';
 
 /**
  * ExchangesDashboard - User's Exchange Dashboard
@@ -29,15 +31,15 @@ const ExchangesDashboard = () => {
   // Determine exchange state from presence
   const getExchangeState = () => {
     const status = user?.presenceStatus;
-    if (status === 'OFFLINE') return { state: 'offline', label: 'Offline', color: 'bg-gray-400', canStart: false };
+    if (status === 'OFFLINE') return { state: 'offline', label: 'Offline', color: 'bg-slate-400', canStart: false };
     if (status === 'IN_SESSION') return { state: 'in_session', label: 'In Session', color: 'bg-blue-500', canStart: false };
-    if (status === 'BUSY') return { state: 'busy', label: 'Busy', color: 'bg-yellow-500', canStart: false };
-    return { state: 'available', label: 'Available', color: 'bg-green-500', canStart: true };
+    if (status === 'BUSY') return { state: 'busy', label: 'Busy', color: 'bg-amber-500', canStart: false };
+    return { state: 'available', label: 'Available', color: 'bg-emerald-500', canStart: true };
   };
 
   const exchangeState = getExchangeState();
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const res = await exchangeApi.getStats();
       setStats(res.data);
@@ -46,43 +48,20 @@ const ExchangesDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Fetch stats on mount and setup listeners
+  // Initial fetch
   useEffect(() => {
     fetchStats();
+  }, [fetchStats]);
 
-    // Real-time listener: Refresh when a match is found OR session changes
-    const matchUnsub = addListener('match', (data) => {
-      console.log('ExchangesDashboard: Match event received, refreshing stats...');
-      if (data.type === 'MATCH_FOUND') {
-        fetchStats();
-      }
-    });
-
-    const sessionUnsub = addListener('session', (data) => {
-      console.log('ExchangesDashboard: Session event received, refreshing stats...', data);
-      if (data.type === 'SESSION_STARTED' || data.type === 'SESSION_ENDED') {
-        fetchStats();
-      }
-    });
-
-    // One-shot refresh when user returns to tab/window.
-    const syncIfVisible = () => {
-      if (document.visibilityState === 'visible') {
-        fetchStats();
-      }
-    };
-    window.addEventListener('focus', syncIfVisible);
-    document.addEventListener('visibilitychange', syncIfVisible);
-
-    return () => {
-      matchUnsub();
-      sessionUnsub();
-      window.removeEventListener('focus', syncIfVisible);
-      document.removeEventListener('visibilitychange', syncIfVisible);
-    };
-  }, []);
+  useLiveRefresh({
+    refresh: fetchStats,
+    events: ['all', 'session', 'match', 'connection'],
+    runOnMount: false,
+    minIntervalMs: 1500,
+    pollIntervalMs: 10000,
+  });
 
   // Handle session ended notification from navigation state
   useEffect(() => {
@@ -103,7 +82,7 @@ const ExchangesDashboard = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-fade-in-up">
       {/* Notification */}
       {notification && (
         <Toast
@@ -114,73 +93,86 @@ const ExchangesDashboard = () => {
       )}
 
       {/* Header with Status */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white transition-colors">My Exchanges</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <span className={`w-2 h-2 rounded-full ${exchangeState.color}`} />
-            <span className="text-sm text-gray-500 dark:text-slate-400 transition-colors">{exchangeState.label}</span>
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300">
+            My Exchanges
+          </h1>
+          <div className="flex items-center gap-2 mt-2">
+            <span className={`w-2.5 h-2.5 rounded-full shadow-lg shadow-current/50 ${exchangeState.color}`} />
+            <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{exchangeState.label}</span>
           </div>
         </div>
-        <button
+
+        <Button
           onClick={handleStartExchange}
           disabled={!exchangeState.canStart}
-          className={`px-6 py-3 rounded-lg font-medium transition-all ${exchangeState.canStart
-            ? 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
-            : 'bg-gray-100 dark:bg-gray-200 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+          className={`h-12 px-8 rounded-full font-semibold shadow-lg transition-all duration-300 ${exchangeState.canStart
+            ? 'bg-gradient-brand hover:shadow-indigo-500/25 hover:scale-105 active:scale-95 text-white border-0'
+            : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none'
             }`}
         >
+          <Zap className={`w-4 h-4 mr-2 ${exchangeState.canStart ? 'fill-current' : ''}`} />
           Start Exchange
-        </button>
+        </Button>
       </div>
 
       {/* Stats Cards - Clearly Labeled */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
 
         {/* My Sessions (Completed Exchanges) */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-5 shadow-sm transition-colors">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center transition-colors">
-              <span className="text-green-600 dark:text-green-500 text-lg transition-colors">✓</span>
+        <div className="glass-card rounded-2xl p-6 relative group overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 duration-500">
+            <CheckCircle className="w-24 h-24 text-emerald-500" />
+          </div>
+          <div className="relative z-10 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-sm group-hover:scale-110 transition-transform duration-300">
+              <CheckCircle className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white transition-colors">
+              <div className="text-3xl font-bold text-slate-900 dark:text-white mb-0.5">
                 {loading ? '—' : stats.myCompleted}
               </div>
-              <div className="text-sm text-gray-500 dark:text-slate-400 transition-colors">My Sessions</div>
-              <div className="text-xs text-gray-400 dark:text-slate-500 transition-colors">Completed exchanges</div>
+              <div className="text-sm font-medium text-slate-600 dark:text-slate-300">My Sessions</div>
+              <div className="text-xs text-slate-500 dark:text-slate-500 mt-1">Completed exchanges</div>
             </div>
           </div>
         </div>
 
         {/* Active Exchanges (Platform-wide) */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-5 shadow-sm transition-colors">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center transition-colors">
-              <span className="text-blue-600 dark:text-blue-500 text-lg transition-colors">⚡</span>
+        <div className="glass-card rounded-2xl p-6 relative group overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 duration-500">
+            <Zap className="w-24 h-24 text-blue-500" />
+          </div>
+          <div className="relative z-10 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-sm group-hover:scale-110 transition-transform duration-300">
+              <Zap className="w-6 h-6 fill-current" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white transition-colors">
+              <div className="text-3xl font-bold text-slate-900 dark:text-white mb-0.5">
                 {loading ? '—' : stats.activeExchanges}
               </div>
-              <div className="text-sm text-gray-500 dark:text-slate-400 transition-colors">Active Exchanges</div>
-              <div className="text-xs text-gray-400 dark:text-slate-500 transition-colors">Platform-wide</div>
+              <div className="text-sm font-medium text-slate-600 dark:text-slate-300">Active Exchanges</div>
+              <div className="text-xs text-slate-500 dark:text-slate-500 mt-1">Platform-wide</div>
             </div>
           </div>
         </div>
 
         {/* Users Online (Platform-wide) */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-5 shadow-sm transition-colors">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center transition-colors">
-              <span className="text-purple-600 dark:text-purple-500 text-lg transition-colors">👥</span>
+        <div className="glass-card rounded-2xl p-6 relative group overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 duration-500">
+            <Users className="w-24 h-24 text-violet-500" />
+          </div>
+          <div className="relative z-10 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 dark:text-violet-400 shadow-sm group-hover:scale-110 transition-transform duration-300">
+              <Users className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white transition-colors">
+              <div className="text-3xl font-bold text-slate-900 dark:text-white mb-0.5">
                 {loading ? '—' : stats.onlineUsers}
               </div>
-              <div className="text-sm text-gray-500 dark:text-slate-400 transition-colors">Users Online</div>
-              <div className="text-xs text-gray-400 dark:text-slate-500 transition-colors">Available to exchange</div>
+              <div className="text-sm font-medium text-slate-600 dark:text-slate-300">Users Online</div>
+              <div className="text-xs text-slate-500 dark:text-slate-500 mt-1">Available to exchange</div>
             </div>
           </div>
         </div>
@@ -189,20 +181,35 @@ const ExchangesDashboard = () => {
 
       {/* Status Message */}
       {!exchangeState.canStart && (
-        <div className="bg-amber-900/20 border border-amber-900/50 rounded-lg p-4 text-center text-sm text-amber-200">
-          {exchangeState.state === 'in_session' && 'You are currently in an active exchange session.'}
-          {exchangeState.state === 'busy' && 'You are currently busy. Complete your current activity to start a new exchange.'}
-          {exchangeState.state === 'offline' && 'You appear to be offline. Connect to start an exchange.'}
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/50 rounded-xl p-4 flex items-center justify-center gap-3 text-sm text-amber-800 dark:text-amber-200 shadow-sm animate-fade-in-up">
+          <AlertCircle className="w-5 h-5" />
+          <span>
+            {exchangeState.state === 'in_session' && 'You are currently in an active exchange session.'}
+            {exchangeState.state === 'busy' && 'You are currently busy. Complete your current activity to start a new exchange.'}
+            {exchangeState.state === 'offline' && 'You appear to be offline. Connect to start an exchange.'}
+          </span>
         </div>
       )}
 
       {/* Quick Tips */}
-      <div className="bg-white dark:bg-slate-900 rounded-lg p-4 text-sm text-gray-500 dark:text-slate-400 border border-gray-200 dark:border-slate-800 transition-colors">
-        <div className="font-medium text-gray-900 dark:text-slate-200 mb-2 transition-colors">How it works</div>
-        <ul className="space-y-1 list-disc list-inside">
-          <li>Click "Start Exchange" to find a partner</li>
-          <li>Connect via voice call to collaborate</li>
-          <li>Share your screen during calls if needed</li>
+      <div className="glass-panel rounded-2xl p-6 text-sm text-slate-600 dark:text-slate-400">
+        <div className="flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-200 mb-3 text-base">
+          <Info className="w-5 h-5 text-indigo-500" />
+          How it works
+        </div>
+        <ul className="space-y-2 list-none pl-1">
+          <li className="flex items-start gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5" />
+            <span>Click <strong>Start Exchange</strong> to find a partner with matching skills.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5" />
+            <span>Connect via high-quality voice call to collaborate in real-time.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5" />
+            <span>Share your screen directly within the call to work together effectively.</span>
+          </li>
         </ul>
       </div>
     </div>

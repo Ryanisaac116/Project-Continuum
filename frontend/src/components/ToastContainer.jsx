@@ -27,6 +27,12 @@ const Toast = ({ notification, onDismiss }) => {
                         navigate(`/chat/${payload.callerId}`);
                     }
                     break;
+                case 'MANUAL':
+                    // Admin notifications — navigate to admin messages tab
+                    if (notification.manualType === 'INFO' || notification.manualType === 'WARNING') {
+                        navigate('/admin?tab=messages');
+                    }
+                    break;
                 default:
                     break;
             }
@@ -49,19 +55,19 @@ const Toast = ({ notification, onDismiss }) => {
     return (
         <div
             onClick={handleClick}
-            className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 flex items-start gap-3 cursor-pointer hover:bg-gray-50 transition animate-slide-in max-w-sm"
+            className="bg-white dark:bg-gray-900 rounded-lg shadow-lg dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 flex items-start gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition animate-slide-in max-w-sm"
         >
             <span className="text-2xl">{getIcon()}</span>
             <div className="flex-1 min-w-0">
-                <div className="font-medium text-gray-900 text-sm">{notification.title}</div>
-                <div className="text-gray-600 text-xs truncate">{notification.message}</div>
+                <div className="font-medium text-gray-900 dark:text-white text-sm">{notification.title}</div>
+                <div className="text-gray-600 dark:text-gray-400 text-xs truncate">{notification.message}</div>
             </div>
             <button
                 onClick={(e) => {
                     e.stopPropagation();
                     onDismiss();
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
             >
                 ✕
             </button>

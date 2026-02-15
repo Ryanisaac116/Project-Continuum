@@ -7,22 +7,26 @@ import java.util.List;
 import java.util.Optional;
 
 public interface SkillExchangeRequestRepository
-        extends JpaRepository<SkillExchangeRequest, Long> {
+                extends JpaRepository<SkillExchangeRequest, Long> {
 
-    // All requests involving a user (sent or received)
-    List<SkillExchangeRequest> findBySender_IdOrReceiver_Id(
-            Long senderId,
-            Long receiverId
-    );
+        // All requests involving a user (sent or received)
+        List<SkillExchangeRequest> findBySender_IdOrReceiver_Id(
+                        Long senderId,
+                        Long receiverId);
 
-    // Prevent duplicate requests
-    Optional<SkillExchangeRequest>
-    findBySender_IdAndReceiver_IdAndSenderSkill_IdAndReceiverSkill_Id(
-            Long senderId,
-            Long receiverId,
-            Long senderSkillId,
-            Long receiverSkillId
-    );
+        // Prevent duplicate requests
+        Optional<SkillExchangeRequest> findBySender_IdAndReceiver_IdAndSenderSkill_IdAndReceiverSkill_Id(
+                        Long senderId,
+                        Long receiverId,
+                        Long senderSkillId,
+                        Long receiverSkillId);
 
-    void deleteBySender_IdOrReceiver_Id(Long senderId, Long receiverId);
+        void deleteBySender_IdOrReceiver_Id(Long senderId, Long receiverId);
+
+        // Admin: Get recent activity (capped at 10)
+        List<SkillExchangeRequest> findTop10BySender_IdOrReceiver_IdOrderByCreatedAtDesc(
+                        Long senderId,
+                        Long receiverId);
+
+        long countByStatus(com.Project.Continuum.enums.ExchangeRequestStatus status);
 }

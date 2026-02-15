@@ -100,13 +100,17 @@ apiClient.interceptors.response.use(
       if (errorCode === 'session_invalidated' || errorCode === 'account_inactive') {
         clearAuthState();
 
-        if (errorCode === 'session_invalidated') {
-          alert(data?.message || 'Your session is no longer valid. Please log in again.');
-        } else if (errorCode === 'account_inactive') {
-          alert(data?.message || 'Your account is inactive.');
-        }
+        const msg = errorCode === 'session_invalidated'
+          ? (data?.message || 'Your session is no longer valid. Please log in again.')
+          : (data?.message || 'Your account is inactive.');
 
-        window.location.href = '/login';
+        // Dynamic import to avoid circular dependency
+        import('../utils/sessionAlert.js').then(({ showSessionAlert }) => {
+          showSessionAlert(msg).then(() => {
+            window.location.href = '/login';
+          });
+        });
+
         // Prevent caller chains from continuing with stale state.
         return new Promise(() => { });
       }

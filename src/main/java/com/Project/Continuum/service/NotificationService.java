@@ -40,6 +40,7 @@ public class NotificationService {
             NotificationType.CALL_MISSED,
             NotificationType.CHAT_MESSAGE,
             NotificationType.MATCH_FOUND,
+            NotificationType.FRIEND_REQUEST_RECEIVED,
             NotificationType.FRIEND_REQUEST_ACCEPTED);
 
     public NotificationService(

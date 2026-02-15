@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { profileApi } from '../../api/profile';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { useDialog } from '../../context/DialogContext';
+import { AlertTriangle } from 'lucide-react';
 
 export const AddSkillForm = ({ onSuccess, onCancel }) => {
     const [systemSkills, setSystemSkills] = useState([]);
@@ -9,6 +11,7 @@ export const AddSkillForm = ({ onSuccess, onCancel }) => {
     const [type, setType] = useState('LEARN');
     const [level, setLevel] = useState('BEGINNER');
     const [loading, setLoading] = useState(false);
+    const dialog = useDialog();
 
     const [userSkills, setUserSkills] = useState([]);
 
@@ -33,10 +36,10 @@ export const AddSkillForm = ({ onSuccess, onCancel }) => {
                 level: level
             });
             onSuccess();
-        } catch {
-            alert("Failed to add skill");
-        } finally {
             setLoading(false);
+        } catch {
+            setLoading(false);
+            await dialog.alert('Error', 'Failed to add skill');
         }
     };
 
@@ -70,20 +73,20 @@ export const AddSkillForm = ({ onSuccess, onCancel }) => {
     const validationWarning = getValidationWarning();
 
     return (
-        <form onSubmit={handleSubmit} className="p-4 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 space-y-4 transition-colors">
+        <form onSubmit={handleSubmit} className="p-4 rounded-lg border bg-muted/30 space-y-4">
 
             {/* Validation Warning Banner */}
             {validationWarning && (
                 <div className="p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 text-sm rounded-md border border-amber-200 dark:border-amber-800 flex items-start gap-2">
-                    <span>⚠️</span>
+                    <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                     <span>{validationWarning}</span>
                 </div>
             )}
 
-            <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors">Select Skill</label>
+            <div className="space-y-1">
+                <Label>Select Skill</Label>
                 <select
-                    className="w-full rounded-md border border-gray-300 dark:border-gray-600 p-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     value={selectedSkill}
                     onChange={e => setSelectedSkill(e.target.value)}
                 >
@@ -108,10 +111,10 @@ export const AddSkillForm = ({ onSuccess, onCancel }) => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                <div className="space-y-1">
+                    <Label>Type</Label>
                     <select
-                        className="w-full rounded-md border border-gray-300 dark:border-gray-600 p-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         value={type}
                         onChange={e => setType(e.target.value)}
                     >
@@ -119,10 +122,10 @@ export const AddSkillForm = ({ onSuccess, onCancel }) => {
                         <option value="TEACH">Teach</option>
                     </select>
                 </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Level</label>
+                <div className="space-y-1">
+                    <Label>Level</Label>
                     <select
-                        className="w-full rounded-md border border-gray-300 dark:border-gray-600 p-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         value={level}
                         onChange={e => setLevel(e.target.value)}
                     >

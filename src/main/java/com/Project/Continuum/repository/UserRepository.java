@@ -23,4 +23,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
             """)
     List<User> findUsersToMarkOffline(@Param("cutoff") java.time.Instant cutoff);
 
+    long countByLastSeenAtAfter(java.time.Instant cutoff);
+
 }

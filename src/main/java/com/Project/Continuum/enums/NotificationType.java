@@ -5,6 +5,7 @@ public enum NotificationType {
     CHAT_MESSAGE,
     CALL_INCOMING,
     CALL_MISSED,
+    FRIEND_REQUEST_RECEIVED,
     FRIEND_REQUEST_ACCEPTED,
     SYSTEM
 }

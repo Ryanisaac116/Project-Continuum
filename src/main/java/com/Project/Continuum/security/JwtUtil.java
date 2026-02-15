@@ -23,17 +23,24 @@ public class JwtUtil {
         this.expiration = expiration;
     }
 
-    // Original method for backward compatibility (no session token)
+    // Original method for backward compatibility (no session token, default USER
+    // role)
     public String generateToken(Long userId) {
-        return generateToken(userId, null);
+        return generateToken(userId, null, "USER");
     }
 
-    // New method with session token claim
+    // Method with session token (default USER role)
     public String generateToken(Long userId, String sessionToken) {
+        return generateToken(userId, sessionToken, "USER");
+    }
+
+    // Full method with session token and role
+    public String generateToken(Long userId, String sessionToken, String role) {
         var builder = Jwts.builder()
                 .setSubject(userId.toString())
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expiration.toMillis()));
+                .setExpiration(new Date(System.currentTimeMillis() + expiration.toMillis()))
+                .claim("role", role);
 
         if (sessionToken != null) {
             builder.claim("session_token", sessionToken);
@@ -50,6 +57,12 @@ public class JwtUtil {
     public String extractSessionToken(String token) {
         Claims claims = parseClaims(token);
         return claims.get("session_token", String.class);
+    }
+
+    public String extractRole(String token) {
+        Claims claims = parseClaims(token);
+        String role = claims.get("role", String.class);
+        return role != null ? role : "USER";
     }
 
     private Claims parseClaims(String token) {

@@ -65,16 +65,31 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
                                 return message; // Invalid session, treat as unauthenticated
                             }
 
+                            // Create authorities based on role
+                            List<org.springframework.security.core.GrantedAuthority> authorities = Collections
+                                    .singletonList(
+                                            new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                                                    "ROLE_" + userOpt.get().getRole().name()));
+
                             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                                     userId,
                                     null,
-                                    Collections.emptyList());
+                                    authorities);
                             accessor.setUser(authentication);
                         }
                     } catch (Exception e) {
                         // Invalid token - connection will fail without auth
                         System.err.println("[WebSocketAuth] Invalid token: " + e.getMessage());
                     }
+                }
+            }
+        } else if (accessor != null && StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+            String destination = accessor.getDestination();
+            if (destination != null && destination.startsWith("/topic/admin")) {
+                var user = accessor.getUser();
+                if (!(user instanceof org.springframework.security.core.Authentication auth) ||
+                        !auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+                    throw new IllegalArgumentException("Access Denied: Admin role required for " + destination);
                 }
             }
         }

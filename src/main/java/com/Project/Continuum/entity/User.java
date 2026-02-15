@@ -2,10 +2,9 @@ package com.Project.Continuum.entity;
 
 import com.Project.Continuum.enums.PresenceStatus;
 import com.Project.Continuum.enums.AuthProvider;
+import com.Project.Continuum.enums.UserRole;
 import jakarta.persistence.*;
 import java.time.Instant;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 
 @Entity
 @Table(name = "users")
@@ -46,6 +45,10 @@ public class User {
 
     @Column(name = "session_token")
     private String sessionToken;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false)
+    private UserRole role = UserRole.USER;
 
     // ===== getters =====
     public Long getId() {
@@ -129,10 +132,21 @@ public class User {
         this.sessionToken = sessionToken;
     }
 
+    public UserRole getRole() {
+        return role;
+    }
+
+    public void setRole(UserRole role) {
+        this.role = role;
+    }
+
     @PrePersist
     protected void onCreate() {
         if (this.createdAt == null) {
             this.createdAt = Instant.now();
+        }
+        if (this.role == null) {
+            this.role = UserRole.USER;
         }
     }
 }

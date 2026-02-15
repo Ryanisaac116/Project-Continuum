@@ -29,5 +29,9 @@ public interface UserSkillRepository extends JpaRepository<UserSkill, Long> {
 
     boolean existsByUser_IdAndSkill_IdAndSkillType(Long userId, Long skillId, SkillType skillType);
 
+    long countByUser_IdAndSkillType(Long userId, SkillType skillType);
+
+    long countBySkillType(SkillType skillType);
+
     void deleteByUser_Id(Long userId);
 }

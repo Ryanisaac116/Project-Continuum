@@ -13,55 +13,18 @@ import {
     subscribeToPresence,
     addListener
 } from '../ws/chatSocket';
+import { useDialog } from '../context/DialogContext';
+import { ArrowLeft, Send, Pencil, Trash2, X, Copy, Reply, MoreVertical } from 'lucide-react';
 
-// Icons
-const BackIcon = () => (
-    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-    </svg>
-);
-
-const SendIcon = () => (
-    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-    </svg>
-);
-
-const EditIcon = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-    </svg>
-);
-
-const TrashIcon = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-    </svg>
-);
-
-const CloseIcon = () => (
-    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-    </svg>
-);
-
-const CopyIcon = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-    </svg>
-);
-
-const ReplyIcon = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-    </svg>
-);
-
-const MoreIcon = () => (
-    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
-    </svg>
-);
+// Icons mapped from lucide-react
+const BackIcon = () => <ArrowLeft className="w-6 h-6" />;
+const SendIcon = () => <Send className="w-5 h-5" />;
+const EditIcon = () => <Pencil className="w-5 h-5" />;
+const TrashIcon = () => <Trash2 className="w-5 h-5" />;
+const CloseIcon = () => <X className="w-6 h-6" />;
+const CopyIcon = () => <Copy className="w-5 h-5" />;
+const ReplyIcon = () => <Reply className="w-5 h-5" />;
+const MoreIcon = () => <MoreVertical className="w-6 h-6" />;
 
 /**
  * ChatPage - Platform-aligned chat with tap-to-select
@@ -70,6 +33,7 @@ const ChatPage = () => {
     const { friendId } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const dialog = useDialog();
 
     const [friend, setFriend] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -595,7 +559,7 @@ const ChatPage = () => {
     const isSelectionMode = selectedIds.size > 0;
 
     return (
-        <div className="flex flex-col h-full min-h-0 bg-gray-50 dark:bg-slate-950 transition-colors duration-300">
+        <div className="flex flex-col h-dvh min-h-0 bg-gray-50 dark:bg-slate-950 transition-colors duration-300">
 
             {/* Copy feedback toast - positioned beside message */}
             {copyFeedback && (
@@ -627,7 +591,7 @@ const ChatPage = () => {
 
                         <button
                             onClick={copySelected}
-                            className="p-3 sm:p-2 rounded-full hover:bg-white/10 active:bg-white/20"
+                            className="p-3 sm:p-2 rounded-full text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:bg-gray-200 dark:active:bg-white/20"
                             title="Copy"
                         >
                             <CopyIcon />
@@ -637,7 +601,7 @@ const ChatPage = () => {
                         {selectedIds.size === 1 && (
                             <button
                                 onClick={handleReply}
-                                className="p-3 sm:p-2 rounded-full hover:bg-white/10 active:bg-white/20"
+                                className="p-3 sm:p-2 rounded-full text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:bg-gray-200 dark:active:bg-white/20"
                                 title="Reply"
                             >
                                 <ReplyIcon />
@@ -647,7 +611,7 @@ const ChatPage = () => {
                         {canEdit && (
                             <button
                                 onClick={startEdit}
-                                className="p-3 sm:p-2 rounded-full hover:bg-white/10 active:bg-white/20"
+                                className="p-3 sm:p-2 rounded-full text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:bg-gray-200 dark:active:bg-white/20"
                                 title="Edit"
                             >
                                 <EditIcon />
@@ -661,7 +625,7 @@ const ChatPage = () => {
                                         e.stopPropagation();
                                         setShowDeleteMenu(!showDeleteMenu);
                                     }}
-                                    className="p-3 sm:p-2 rounded-full hover:bg-white/10 active:bg-white/20"
+                                    className="p-3 sm:p-2 rounded-full text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:bg-gray-200 dark:active:bg-white/20"
                                     title="Delete"
                                 >
                                     <TrashIcon />
@@ -725,13 +689,14 @@ const ChatPage = () => {
                                     <button
                                         onClick={async () => {
                                             setShowChatMenu(false);
-                                            if (confirm('Clear all messages for you? This cannot be undone.')) {
+                                            const ok = await dialog.confirm('Clear Chat', 'Clear all messages for you? This cannot be undone.', 'Clear', 'destructive');
+                                            if (ok) {
                                                 try {
                                                     await chatApi.clearChat(friendId);
                                                     setMessages([]);
                                                 } catch (err) {
                                                     console.error('Failed to clear chat:', err);
-                                                    alert('Failed to clear chat');
+                                                    await dialog.alert('Error', 'Failed to clear chat');
                                                 }
                                             }
                                         }}
@@ -810,9 +775,9 @@ const ChatPage = () => {
                                         <div
                                             data-message-id={msg.id}
                                             className={`flex ${isMe ? 'justify-end' : 'justify-start'} relative transition-colors duration-300 ${isHighlighted
-                                                ? 'bg-blue-900/40 -mx-3 px-3 py-1.5 rounded-lg'
+                                                ? 'bg-blue-100 dark:bg-blue-900/40 -mx-3 px-3 py-1.5 rounded-lg'
                                                 : isSelected
-                                                    ? 'bg-blue-900/30 -mx-3 px-3 py-1.5 rounded-lg ring-1 ring-blue-500/50'
+                                                    ? 'bg-blue-100/80 dark:bg-blue-900/30 -mx-3 px-3 py-1.5 rounded-lg ring-1 ring-blue-400/50 dark:ring-blue-500/50'
                                                     : ''
                                                 }`}
                                             style={{

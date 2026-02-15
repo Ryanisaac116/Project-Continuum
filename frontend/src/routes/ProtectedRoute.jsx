@@ -14,7 +14,7 @@ const ProtectedRoute = ({ children, noLayout = false }) => {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   // Skip layout for pages with custom layouts (e.g., ChatPage)

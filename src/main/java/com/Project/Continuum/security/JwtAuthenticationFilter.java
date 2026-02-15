@@ -12,8 +12,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -88,10 +90,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
+            // Use DB role so role updates take effect immediately.
+            String role = user.getRole() != null ? user.getRole().name() : "USER";
+            System.out.println(
+                    "JwtFilter: User " + userId + " accessing " + request.getRequestURI() + " with Role: " + role);
+
+            var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     userId,
                     null,
-                    Collections.emptyList());
+                    authorities);
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
 

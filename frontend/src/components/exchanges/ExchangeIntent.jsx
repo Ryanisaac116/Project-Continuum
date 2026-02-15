@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '../ui/Card';
-import { Button } from '../ui/Button';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { profileApi } from '../../api/profile';
+import { AlertTriangle } from 'lucide-react';
 
 /**
  * ExchangeIntent - Choose exchange type (Audio Call for now)
@@ -202,8 +203,8 @@ const ExchangeIntent = () => {
 
         {/* Validation Warning */}
         {validationError && (
-          <div className="p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 text-sm rounded-md border border-amber-200 dark:border-amber-800 animate-in fade-in zoom-in-95 duration-200">
-            ⚠️ {validationError}
+          <div className="p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 text-sm rounded-md border border-amber-200 dark:border-amber-800 animate-in fade-in zoom-in-95 duration-200 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" /> {validationError}
           </div>
         )}
 

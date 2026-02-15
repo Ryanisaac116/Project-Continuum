@@ -1,8 +1,14 @@
+import path from "path"
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
   server: {
     host: true,
     proxy: {
@@ -15,6 +21,7 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
+      // Note: /admin SPA route handled by React Router, admin API is at /api/admin
       '/dev': {
         target: 'http://localhost:8080',
         changeOrigin: true,

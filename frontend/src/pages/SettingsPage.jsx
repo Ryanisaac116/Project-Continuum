@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageContainer } from '../components/layout/PageContainer';
-import { Card, CardHeader } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
 import { useAuth } from '../auth/AuthContext';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useDialog } from '../context/DialogContext';
 
 const SettingsPage = () => {
     const navigate = useNavigate();
@@ -21,6 +22,7 @@ const SettingsPage = () => {
 
     const [accountAction, setAccountAction] = useState(null);
     const [accountError, setAccountError] = useState('');
+    const dialog = useDialog();
 
     const isBusy = accountAction !== null;
 
@@ -51,8 +53,11 @@ const SettingsPage = () => {
     };
 
     const handleDeactivate = async () => {
-        const confirmed = window.confirm(
-            'Deactivate account? You can contact support later to restore access.'
+        const confirmed = await dialog.confirm(
+            'Deactivate Account',
+            'Deactivate account? You can contact support later to restore access.',
+            'Deactivate',
+            'warning'
         );
         if (!confirmed) return;
 
@@ -70,8 +75,11 @@ const SettingsPage = () => {
     };
 
     const handleDelete = async () => {
-        const confirmed = window.confirm(
-            'Delete account permanently? This action cannot be undone and all data will be removed.'
+        const confirmed = await dialog.confirm(
+            'Delete Account',
+            'Delete account permanently? This action cannot be undone and all data will be removed.',
+            'Delete Permanently',
+            'destructive'
         );
         if (!confirmed) return;
 
@@ -90,63 +98,63 @@ const SettingsPage = () => {
 
     return (
         <PageContainer>
-            <div className="max-w-3xl mx-auto">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">Settings</h1>
+            <div className="max-w-3xl mx-auto space-y-8">
+                <h1 className="text-3xl font-bold text-foreground text-center">Settings</h1>
 
                 <div className="space-y-6">
                     <Card>
-                        <CardHeader
-                            title="Notifications"
-                            description="Manage how you receive updates when you're away"
-                        />
-                        <div className="flex items-center justify-between p-1">
+                        <CardHeader>
+                            <CardTitle>Notifications</CardTitle>
+                            <CardDescription>Manage how you receive updates when you're away</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex items-center justify-between">
                             <div>
-                                <div className="font-medium text-gray-900 dark:text-white">Push Notifications</div>
-                                <div className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                                <div className="font-medium">Push Notifications</div>
+                                <div className="text-sm text-muted-foreground mt-1">
                                     Receive alerts for calls, matches, and messages when offline.
                                 </div>
-                                <div className="text-xs text-gray-400 mt-2">
+                                <div className="text-xs text-muted-foreground mt-2">
                                     Status: <span className="font-semibold">{getPushStatusLabel()}</span>
                                 </div>
                             </div>
 
                             <Button
-                                variant={isSubscribed ? 'outline' : 'primary'}
+                                variant={isSubscribed ? 'outline' : 'default'}
                                 onClick={handlePushToggle}
                                 disabled={pushLoading || !isSupported || permission === 'denied'}
                             >
                                 {pushLoading ? 'Loading...' : isSubscribed ? 'Disable' : 'Enable'}
                             </Button>
-                        </div>
+                        </CardContent>
                     </Card>
 
                     <Card>
-                        <CardHeader
-                            title="Appearance"
-                            description="Customize your visual experience"
-                        />
-                        <div className="flex items-center justify-between p-1">
+                        <CardHeader>
+                            <CardTitle>Appearance</CardTitle>
+                            <CardDescription>Customize your visual experience</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex items-center justify-between">
                             <div>
-                                <div className="font-medium text-gray-900 dark:text-white">Theme</div>
-                                <div className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                                <div className="font-medium">Theme</div>
+                                <div className="text-sm text-muted-foreground mt-1">
                                     Switch between Light and Dark mode.
                                 </div>
                             </div>
                             <ThemeToggle />
-                        </div>
+                        </CardContent>
                     </Card>
 
-                    <Card className="border-red-200 dark:border-red-900/30">
-                        <CardHeader
-                            title="Account"
-                            description="Manage your account and session"
-                        />
+                    <Card className="border-destructive/20">
+                        <CardHeader>
+                            <CardTitle>Account</CardTitle>
+                            <CardDescription>Manage your account and session</CardDescription>
+                        </CardHeader>
 
-                        <div className="space-y-4 p-1">
+                        <CardContent className="space-y-4">
                             <div className="flex items-center justify-between gap-4">
                                 <div>
-                                    <div className="font-medium text-gray-900 dark:text-white">Session</div>
-                                    <div className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                                    <div className="font-medium">Session</div>
+                                    <div className="text-sm text-muted-foreground mt-1">
                                         Stay signed in until you explicitly sign out.
                                     </div>
                                 </div>
@@ -161,8 +169,8 @@ const SettingsPage = () => {
 
                             <div className="flex items-center justify-between gap-4">
                                 <div>
-                                    <div className="font-medium text-amber-700 dark:text-amber-400">Deactivate Account</div>
-                                    <div className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                                    <div className="font-medium text-amber-600 dark:text-amber-500">Deactivate Account</div>
+                                    <div className="text-sm text-muted-foreground mt-1">
                                         Disable your account without deleting your data.
                                     </div>
                                 </div>
@@ -177,13 +185,13 @@ const SettingsPage = () => {
 
                             <div className="flex items-center justify-between gap-4">
                                 <div>
-                                    <div className="font-medium text-red-600 dark:text-red-400">Delete Account</div>
-                                    <div className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                                    <div className="font-medium text-destructive">Delete Account</div>
+                                    <div className="text-sm text-muted-foreground mt-1">
                                         Permanently remove your account and related data.
                                     </div>
                                 </div>
                                 <Button
-                                    variant="danger"
+                                    variant="destructive"
                                     disabled={isBusy}
                                     onClick={handleDelete}
                                 >
@@ -192,12 +200,12 @@ const SettingsPage = () => {
                             </div>
 
                             {accountError && (
-                                <p className="text-sm text-red-600 dark:text-red-400">{accountError}</p>
+                                <p className="text-sm text-destructive">{accountError}</p>
                             )}
-                        </div>
+                        </CardContent>
                     </Card>
 
-                    <div className="text-center text-xs text-gray-400 py-4">
+                    <div className="text-center text-xs text-muted-foreground py-4">
                         Continuum v1.0.0 | Connected as {user?.name || `User #${user?.id ?? ''}`}
                     </div>
                 </div>

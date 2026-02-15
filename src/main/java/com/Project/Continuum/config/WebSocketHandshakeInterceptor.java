@@ -7,6 +7,7 @@ import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
@@ -73,11 +74,17 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
                         // Store userId in session attributes for later use
                         attributes.put("userId", userId);
 
-                        // Create authentication token
+                        // Create authentication token WITH user's role authorities
+                        // This is critical: the channel interceptor checks ROLE_ADMIN
+                        // for /topic/admin/* subscriptions. Without the role here,
+                        // admin subscriptions are silently rejected.
+                        var authorities = Collections.singletonList(
+                                new SimpleGrantedAuthority(
+                                        "ROLE_" + userOpt.get().getRole().name()));
                         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                                 userId,
                                 null,
-                                Collections.emptyList());
+                                authorities);
                         attributes.put("simpUser", auth);
 
                         return true;

@@ -30,8 +30,18 @@ export const NotificationProvider = ({ children }) => {
         syncInFlightRef.current = true;
         try {
             const res = await apiClient.get('/notifications?limit=50');
-            setNotifications(res.data.notifications || []);
-            setUnreadCount(res.data.unreadCount || 0);
+            const serverNotifications = res.data.notifications || [];
+            let adminUnreadCount = 0;
+            // Preserve client-side admin notifications (they only live in local state)
+            setNotifications((prev) => {
+                const adminNotifs = prev.filter(n => String(n.id).startsWith('admin-'));
+                adminUnreadCount = adminNotifs.filter(n => !n.isRead).length;
+                return [...adminNotifs, ...serverNotifications];
+            });
+            // Use setTimeout(0) to read the adminUnreadCount after state updater runs
+            setTimeout(() => {
+                setUnreadCount((res.data.unreadCount || 0) + adminUnreadCount);
+            }, 0);
         } catch (err) {
             console.error('Failed to fetch notifications:', err);
         } finally {
@@ -67,8 +77,6 @@ export const NotificationProvider = ({ children }) => {
             setNotifications(prev => prev.map(n =>
                 n.id === notification.id ? { ...n, isRead: true } : n
             ));
-            // Only decrement if we actually found an unread one, but count logic is simpler:
-            // Just sync count or decrement safely.
             setUnreadCount(prev => Math.max(0, prev - 1));
             return;
         }
@@ -77,9 +85,15 @@ export const NotificationProvider = ({ children }) => {
         setNotifications((prev) => [notification, ...prev]);
         setUnreadCount((prev) => prev + 1);
 
-        // Show toast for certain types
         // Show toast for certain types (SUPPRESS if already in chat)
-        const toastTypes = ['CHAT_MESSAGE', 'MATCH_FOUND', 'CALL_INCOMING', 'CALL_MISSED'];
+        const toastTypes = [
+            'CHAT_MESSAGE',
+            'MATCH_FOUND',
+            'CALL_INCOMING',
+            'CALL_MISSED',
+            'FRIEND_REQUEST_RECEIVED',
+            'FRIEND_REQUEST_ACCEPTED'
+        ];
 
         let shouldShowToast = true;
 
@@ -87,14 +101,11 @@ export const NotificationProvider = ({ children }) => {
         if (notification.type === 'CHAT_MESSAGE') {
             try {
                 const payload = JSON.parse(notification.payload);
-                // Extract sender ID from path "/chat/123"
                 const currentChatId = window.location.pathname.match(/\/chat\/(\d+)/)?.[1];
 
                 if (currentChatId && String(currentChatId) === String(payload.senderId)) {
                     shouldShowToast = false;
                     console.log('[NotificationContext] Suppressing chat notification (already in chat)');
-                    // Optional: Mark as read immediately since we are looking at it? 
-                    // (Actually, ChatPage handles read receipts, so just suppressing toast is safer)
                 }
             } catch (e) {
                 console.error('Error parsing payload for suppression check:', e);
@@ -112,11 +123,51 @@ export const NotificationProvider = ({ children }) => {
         }
     }, []);
 
-    // Register WebSocket callback
+    // Register WebSocket callback for general notifications
     useEffect(() => {
         const unsubscribe = addListener('notification', handleNotification);
         return () => unsubscribe();
     }, [handleNotification]);
+
+    // Global listener for admin messages — shows toast on ANY page + adds to notification center
+    useEffect(() => {
+        if (!user || user.role !== 'ADMIN') return;
+
+        const handleAdminMessage = (msg) => {
+            const isReport = msg.type === 'REPORT';
+            const title = `New ${isReport ? 'Report' : 'Support Message'}`;
+            const body = `${msg.subject} — ${msg.sender?.name || 'Unknown'}`;
+
+            // Add to notification center so it persists in the bell icon
+            const notification = {
+                id: `admin-${msg.id}`,
+                type: isReport ? 'ADMIN_REPORT' : 'ADMIN_SUPPORT',
+                title,
+                message: body,
+                isRead: false,
+                createdAt: msg.createdAt || new Date().toISOString(),
+            };
+            setNotifications((prev) => [notification, ...prev]);
+            setUnreadCount((prev) => prev + 1);
+
+            // Show toast (stays for 10 seconds)
+            const toastId = Date.now();
+            setToasts((prev) => [...prev, {
+                id: toastId,
+                toastId,
+                title,
+                message: body,
+                type: 'MANUAL',
+                manualType: isReport ? 'WARNING' : 'INFO',
+            }]);
+            setTimeout(() => {
+                setToasts((prev) => prev.filter((t) => t.toastId !== toastId));
+            }, 10000);
+        };
+
+        const unsubscribe = addListener('adminMessage', handleAdminMessage);
+        return () => unsubscribe();
+    }, [user]);
 
     // Resync on reconnect/focus/visibility without continuous background polling.
     useEffect(() => {
@@ -142,8 +193,29 @@ export const NotificationProvider = ({ children }) => {
         };
     }, [syncNotifications]);
 
+    // Safety net: periodic sync to keep notification badges accurate.
+    useEffect(() => {
+        if (authLoading || !user) return;
+
+        const timer = window.setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                syncNotifications();
+            }
+        }, 15000);
+
+        return () => window.clearInterval(timer);
+    }, [authLoading, user, syncNotifications]);
+
     // Mark single notification as read
     const markAsRead = async (notificationId) => {
+        // Admin notifications are client-side only — mark locally without API call
+        if (String(notificationId).startsWith('admin-')) {
+            setNotifications((prev) =>
+                prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
+            );
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+            return;
+        }
         try {
             await apiClient.post(`/notifications/${notificationId}/read`);
             setNotifications((prev) =>

@@ -21,8 +21,11 @@ import { getWsUrl } from '../api/client';
 
 let client = null;
 let connected = false;
+let adminSubscription = null;
 let presenceSubscriptions = {};
 let connectionCallbacks = { onConnected: null, onError: null };
+
+let isUserAdmin = false;
 
 // Event listeners by type (multiple listeners per type)
 const listeners = {
@@ -32,9 +35,10 @@ const listeners = {
     notification: new Set(),
     callSignal: new Set(),
     presence: new Map(),
-    connectionChange: new Set(), // NEW: listen to connection state changes
-    match: new Set(), // NEW: listen to match events
-    session: new Set(), // NEW: listen to session events
+    connectionChange: new Set(),
+    match: new Set(),
+    session: new Set(),
+    adminMessage: new Set(),
 };
 
 /**
@@ -119,84 +123,19 @@ export const updateNotificationCallback = (callback) => {
 };
 
 /**
- * Setup all subscriptions after connection
+ * Setup Admin Subscription
  */
-const setupSubscriptions = () => {
-    if (!client || !client.connected) return;
+const setupAdminSubscription = () => {
+    if (!client || !client.connected || !isUserAdmin || adminSubscription) return;
 
     try {
-        // Messages
-        client.subscribe('/user/queue/messages', (message) => {
-            const msg = JSON.parse(message.body);
-            emit('message', msg);
-            if (onMessageCallback) onMessageCallback(msg);
-        });
-
-        // Session events
-        client.subscribe('/user/queue/session', (message) => {
+        console.log('[ChatSocket] Subscribing to Admin Messages');
+        adminSubscription = client.subscribe('/topic/admin/messages', (message) => {
             const data = JSON.parse(message.body);
-
-
-            // Normalize event type (backend sends 'type' or 'event')
-            const eventType = data.type || data.event;
-
-            // Emit generic session event
-            emit('session', { ...data, event: eventType });
-
-            if (eventType === 'session_invalidated' || eventType === 'account_inactive') {
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                localStorage.removeItem('userId');
-                alert(data.message || 'Your session is no longer valid. Please log in again.');
-                window.location.href = '/login';
-            }
+            emit('adminMessage', data);
         });
-
-        // Friend events
-        client.subscribe('/user/queue/friends', (message) => {
-            const data = JSON.parse(message.body);
-
-            emit('friend', data);
-            if (onFriendEventCallback) onFriendEventCallback(data);
-        });
-
-        // Call events
-        client.subscribe('/user/queue/calls', (message) => {
-            const data = JSON.parse(message.body);
-
-            emit('call', data);
-            if (onCallEventCallback) onCallEventCallback(data);
-        });
-
-        // Notifications
-        client.subscribe('/user/queue/notifications', (message) => {
-            const data = JSON.parse(message.body);
-
-            emit('notification', data);
-            if (onNotificationCallback) onNotificationCallback(data);
-        });
-
-        // WebRTC Call Signaling
-        client.subscribe('/user/queue/call-signal', (message) => {
-            const data = JSON.parse(message.body);
-
-            emit('callSignal', data);
-        });
-
-        // Match events (from Matching Service)
-        client.subscribe('/user/queue/match', (message) => {
-            const data = JSON.parse(message.body);
-
-            emit('match', data);
-        });
-
-        // Re-subscribe to presence for existing subscriptions
-        Object.keys(presenceSubscriptions).forEach(userId => {
-            resubscribeToPresence(Number(userId));
-        });
-
     } catch (err) {
-        console.error('[ChatSocket] Subscribe error:', err);
+        console.error('[ChatSocket] Admin subscribe error:', err);
     }
 };
 
@@ -237,11 +176,97 @@ const resubscribeToPresence = (userId) => {
 };
 
 /**
+ * Setup all subscriptions after connection
+ */
+const setupSubscriptions = () => {
+    if (!client || !client.connected) return;
+
+    try {
+        // Messages
+        client.subscribe('/user/queue/messages', (message) => {
+            const msg = JSON.parse(message.body);
+            emit('message', msg);
+            if (onMessageCallback) onMessageCallback(msg);
+        });
+
+        // Session events
+        client.subscribe('/user/queue/session', (message) => {
+            const data = JSON.parse(message.body);
+            const eventType = data.type || data.event;
+            emit('session', { ...data, event: eventType });
+            if (eventType === 'session_invalidated' || eventType === 'account_inactive') {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                localStorage.removeItem('userId');
+                import('../utils/sessionAlert.js').then(({ showSessionAlert }) => {
+                    showSessionAlert(data.message || 'Your session is no longer valid. Please log in again.').then(() => {
+                        window.location.href = '/login';
+                    });
+                });
+            }
+        });
+
+        // Friend events
+        client.subscribe('/user/queue/friends', (message) => {
+            const data = JSON.parse(message.body);
+            emit('friend', data);
+            if (onFriendEventCallback) onFriendEventCallback(data);
+        });
+
+        // Call events
+        client.subscribe('/user/queue/calls', (message) => {
+            const data = JSON.parse(message.body);
+            emit('call', data);
+            if (onCallEventCallback) onCallEventCallback(data);
+        });
+
+        // Notifications
+        client.subscribe('/user/queue/notifications', (message) => {
+            const data = JSON.parse(message.body);
+            emit('notification', data);
+            if (onNotificationCallback) onNotificationCallback(data);
+        });
+
+        // WebRTC Call Signaling
+        client.subscribe('/user/queue/call-signal', (message) => {
+            const data = JSON.parse(message.body);
+            emit('callSignal', data);
+        });
+
+        // Match events
+        client.subscribe('/user/queue/match', (message) => {
+            const data = JSON.parse(message.body);
+            emit('match', data);
+        });
+
+        // Admin Messages
+        setupAdminSubscription();
+
+        // Re-subscribe to presence for existing subscriptions
+        Object.keys(presenceSubscriptions).forEach(userId => {
+            resubscribeToPresence(Number(userId));
+        });
+
+    } catch (err) {
+        console.error('[ChatSocket] Subscribe error:', err);
+    }
+};
+
+/**
  * Connect to WebSocket with optimized settings
  */
-export const connectChatSocket = (token, onMessage, onConnected, onError) => {
+export const connectChatSocket = (token, onMessage, onConnected, onError, isAdmin = false) => {
     onMessageCallback = onMessage;
     connectionCallbacks = { onConnected, onError };
+
+    // Check for admin upgrade if already connected
+    if (connected && isAdmin && !isUserAdmin) {
+        console.log('[ChatSocket] Upgrading to Admin subscriptions');
+        isUserAdmin = isAdmin;
+        setupAdminSubscription();
+    }
+
+    isUserAdmin = isAdmin;
 
     if (client && connected) {
         onConnected?.();
@@ -258,23 +283,17 @@ export const connectChatSocket = (token, onMessage, onConnected, onError) => {
 
     const wsUrl = getWsUrl(token);
 
-
     client = new Client({
         brokerURL: wsUrl,
-        // OPTIMIZED: Faster reconnection
-        reconnectDelay: 5000, // Less aggressive reconnect to reduce backend log spam on flaky links
-        // Heartbeat for connection health (reduced frequency to cut backend log noise)
+        reconnectDelay: 5000,
         heartbeatIncoming: 30000,
         heartbeatOutgoing: 30000,
-        // Disable debug in production
         debug: () => { },
-        // Connection timeout
         connectionTimeout: 5000,
     });
 
     client.onConnect = () => {
         connected = true;
-
         setupSubscriptions();
         notifyConnectionChange(true);
         connectionCallbacks.onConnected?.();
@@ -282,13 +301,11 @@ export const connectChatSocket = (token, onMessage, onConnected, onError) => {
 
     client.onDisconnect = () => {
         connected = false;
-
         notifyConnectionChange(false);
     };
 
     client.onWebSocketClose = () => {
         connected = false;
-
         notifyConnectionChange(false);
         connectionCallbacks.onError?.('Disconnected');
     };
@@ -418,7 +435,6 @@ export const isChatConnected = () => connected;
  */
 export const forceReconnect = () => {
     if (client) {
-
         client.deactivate();
         setTimeout(() => {
             client.activate();

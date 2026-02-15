@@ -1,4 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
+import { Button } from "@/components/ui/button"
+import { AlertTriangle } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   connectMatchingSocket,
@@ -126,21 +128,22 @@ const MatchingScreen = () => {
   if (status === 'ERROR') {
     return (
       <div className="flex flex-col items-center justify-center gap-6 py-24 text-center">
-        <div className="text-5xl">⚠️</div>
+        <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center"><AlertTriangle className="w-8 h-8 text-red-500" /></div>
         <p className="text-lg text-red-600 dark:text-red-500 font-medium transition-colors">{error}</p>
         <div className="flex gap-4">
-          <button
+          <Button
             onClick={handleRetry}
-            className="px-6 py-2 bg-gray-900 dark:bg-black text-white rounded-lg hover:bg-gray-800 transition shadow-lg"
+            className="px-6 py-2 shadow-lg"
           >
             Retry
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
             onClick={handleCancel}
             className="px-6 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
           >
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -168,12 +171,13 @@ const MatchingScreen = () => {
         </p>
       )}
 
-      <button
+      <Button
+        variant="ghost"
         onClick={handleCancel}
-        className="text-sm text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors"
+        className="text-sm text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors h-auto font-normal"
       >
         Cancel exchange
-      </button>
+      </Button>
     </div>
   );
 };

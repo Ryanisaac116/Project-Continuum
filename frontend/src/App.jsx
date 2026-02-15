@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { RealTimeProvider } from './context/RealTimeContext';
+import { DialogProvider } from './context/DialogContext';
 import { CallProvider, useCall } from './context/CallContext';
 import * as ThemeContext from './context/ThemeContext';
 import LoginPage from './pages/LoginPage';
@@ -18,6 +19,9 @@ import ToastContainer from './components/ToastContainer';
 import { useTabPresence } from './hooks/useTabPresence';
 import LandingPage from './pages/LandingPage';
 import AuthSuccess from './pages/AuthSuccess';
+import UnauthorizedPage from './pages/UnauthorizedPage';
+import AdminRoute from './routes/AdminRoute';
+import AdminPage from './pages/AdminPage';
 
 /* ======================
    App with Tab Presence
@@ -102,6 +106,21 @@ function AppContent() {
           }
         />
 
+        {/* Admin Page - uses main AppLayout, requires ADMIN role */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminRoute>
+                <AdminPage />
+              </AdminRoute>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Unauthorized Page */}
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
+
         {/* Catch-all MUST be last */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -114,13 +133,15 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <ThemeContext.ThemeProvider>
-          <NotificationProvider>
-            <RealTimeProvider>
-              <CallProvider>
-                <AppContent />
-              </CallProvider>
-            </RealTimeProvider>
-          </NotificationProvider>
+          <DialogProvider>
+            <NotificationProvider>
+              <RealTimeProvider>
+                <CallProvider>
+                  <AppContent />
+                </CallProvider>
+              </RealTimeProvider>
+            </NotificationProvider>
+          </DialogProvider>
         </ThemeContext.ThemeProvider>
       </AuthProvider>
     </BrowserRouter>

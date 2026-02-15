@@ -1,4 +1,6 @@
-import { Badge } from '../ui/Badge';
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
 /**
  * RecentlyMetList - Display users from completed exchange sessions
@@ -25,17 +27,17 @@ const RecentlyMetList = ({ users, onSendRequest, pendingActions = {} }) => {
                 const isPending = pendingActions[`send-${user.userId}`];
 
                 return (
-                    <li key={user.userId} className="p-4 flex items-center justify-between">
+                    <li key={user.userId} className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-muted/50 transition-colors">
                         {/* User Info */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-4">
                             {/* Avatar placeholder */}
-                            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-500 dark:text-slate-400 font-medium border border-gray-200 dark:border-slate-700 transition-colors">
+                            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-secondary flex items-center justify-center font-bold text-secondary-foreground text-sm">
                                 {user.name?.charAt(0)?.toUpperCase() || '?'}
                             </div>
 
                             <div>
-                                <div className="font-medium text-gray-900 dark:text-white transition-colors">{user.name}</div>
-                                <div className="text-xs text-gray-500 dark:text-slate-500 transition-colors">
+                                <div className="font-medium">{user.name}</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">
                                     {user.lastSessionAt
                                         ? `Last session: ${formatRelativeTime(user.lastSessionAt)}`
                                         : 'Recently met'
@@ -46,18 +48,22 @@ const RecentlyMetList = ({ users, onSendRequest, pendingActions = {} }) => {
 
                         {/* Presence + Action */}
                         <div className="flex items-center gap-3">
-                            <Badge status={user.presence}>{user.presence || 'OFFLINE'}</Badge>
+                            <div className="hidden sm:block">
+                                <Badge variant={user.presence === 'ONLINE' ? 'default' : 'secondary'} className={cn(
+                                    user.presence === 'ONLINE' && "bg-green-500 hover:bg-green-600"
+                                )}>
+                                    {user.presence || 'OFFLINE'}
+                                </Badge>
+                            </div>
 
-                            <button
-                                onClick={() => onSendRequest(user.userId)}
+                            <Button
+                                size="sm"
+                                variant={isPending ? "secondary" : "outline"}
                                 disabled={isPending}
-                                className={`px-3 py-1 text-sm rounded-lg transition ${isPending
-                                    ? 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 cursor-not-allowed border border-gray-200 dark:border-slate-700'
-                                    : 'bg-gray-100 dark:bg-slate-100 text-gray-900 dark:text-slate-900 hover:bg-white dark:hover:bg-white font-medium shadow-sm transition-colors'
-                                    }`}
+                                onClick={() => onSendRequest(user.userId)}
                             >
                                 {isPending ? 'Sending...' : 'Add Friend'}
-                            </button>
+                            </Button>
                         </div>
                     </li>
                 );

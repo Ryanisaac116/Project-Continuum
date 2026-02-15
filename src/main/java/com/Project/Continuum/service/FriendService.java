@@ -25,15 +25,18 @@ public class FriendService {
     private final ExchangeSessionRepository exchangeSessionRepository;
     private final com.Project.Continuum.store.PresenceStore presenceStore;
     private final org.springframework.messaging.simp.SimpMessageSendingOperations messagingTemplate;
+    private final NotificationService notificationService;
 
     public FriendService(FriendRepository friendRepository,
             ExchangeSessionRepository exchangeSessionRepository,
             com.Project.Continuum.store.PresenceStore presenceStore,
-            org.springframework.messaging.simp.SimpMessageSendingOperations messagingTemplate) {
+            org.springframework.messaging.simp.SimpMessageSendingOperations messagingTemplate,
+            NotificationService notificationService) {
         this.friendRepository = friendRepository;
         this.exchangeSessionRepository = exchangeSessionRepository;
         this.presenceStore = presenceStore;
         this.messagingTemplate = messagingTemplate;
+        this.notificationService = notificationService;
     }
 
     // 🔥 Send Friend Request
@@ -87,7 +90,7 @@ public class FriendService {
 
         friendRepository.save(friend);
 
-        // 🔥 Broadcast real-time event to receiver
+        // 🔥 Broadcast real-time event to receiver (for data sync)
         messagingTemplate.convertAndSendToUser(
                 String.valueOf(receiver.getId()),
                 "/queue/friends",
@@ -96,6 +99,14 @@ public class FriendService {
                         "requesterId", sender.getId(),
                         "requesterName", sender.getName(),
                         "presence", presenceStore.getStatus(sender.getId()).name()));
+
+        // 🔥 Create Persistent Notification (triggers toast + bell)
+        notificationService.createNotification(
+                receiver.getId(),
+                com.Project.Continuum.enums.NotificationType.FRIEND_REQUEST_RECEIVED,
+                "New Friend Request",
+                sender.getName() + " sent you a friend request.",
+                "{\"requesterId\":" + sender.getId() + "}");
     }
 
     // 🔥 Accept Friend Request
@@ -127,6 +138,14 @@ public class FriendService {
                         "friendId", currentUserId,
                         "friendName", currentUser.getName(),
                         "presence", presenceStore.getStatus(currentUserId).name()));
+
+        // 🔥 Create Persistent Notification
+        notificationService.createNotification(
+                requesterId,
+                com.Project.Continuum.enums.NotificationType.FRIEND_REQUEST_ACCEPTED,
+                "Friend Request Accepted",
+                currentUser.getName() + " accepted your friend request.",
+                "{\"friendId\":" + currentUserId + "}");
     }
 
     // 🔥 Reject Friend Request

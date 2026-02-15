@@ -3,6 +3,7 @@ package com.Project.Continuum.security;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -13,13 +14,13 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
-// SECURITY CONFIG CONTRACT (DO NOT CHANGE):
+// SECURITY CONFIG CONTRACT:
 // - Stateless JWT auth
 // - Identity = userId only
-// - No roles/permissions here
 // - Google login must NOT affect this file (except permitted endpoints)
 
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
@@ -47,6 +48,7 @@ public class SecurityConfig {
                                 "/api/auth/**" // allow both dev & google
                         )
                         .permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 

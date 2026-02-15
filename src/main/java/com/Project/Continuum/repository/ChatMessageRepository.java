@@ -25,4 +25,6 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
 
     void deleteBySender_IdOrRecipient_Id(Long senderId, Long recipientId);
 
+    long countBySender(com.Project.Continuum.entity.User sender);
+
 }

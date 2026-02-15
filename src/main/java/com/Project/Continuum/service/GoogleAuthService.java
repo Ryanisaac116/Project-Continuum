@@ -3,6 +3,7 @@ package com.Project.Continuum.service;
 import com.Project.Continuum.entity.User;
 import com.Project.Continuum.enums.AuthProvider;
 import com.Project.Continuum.enums.PresenceStatus;
+import com.Project.Continuum.enums.UserRole;
 import com.Project.Continuum.exception.BadRequestException;
 import com.Project.Continuum.repository.UserRepository;
 import com.Project.Continuum.security.JwtUtil;
@@ -70,12 +71,15 @@ public class GoogleAuthService {
 
         // 4. Sync User
         User user = syncUser(providerUserId, name, email, pictureUrl);
+        if (user.getRole() == null) {
+            user.setRole(UserRole.USER);
+        }
 
         // 5. Issue JWT bound to a server-side session token.
         String sessionToken = UUID.randomUUID().toString();
         user.setSessionToken(sessionToken);
         userRepository.save(user);
-        return jwtUtil.generateToken(user.getId(), sessionToken);
+        return jwtUtil.generateToken(user.getId(), sessionToken, user.getRole().name());
     }
 
     private String exchangeCodeForToken(String code) {
