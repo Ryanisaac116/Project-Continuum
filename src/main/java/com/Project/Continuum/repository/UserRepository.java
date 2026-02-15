@@ -14,6 +14,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByAuthProviderAndProviderUserId(AuthProvider authProvider, String providerUserId);
 
+    org.springframework.data.domain.Page<User> findByRoleNot(com.Project.Continuum.enums.UserRole role,
+            org.springframework.data.domain.Pageable pageable);
+
     boolean existsByIdAndIsActiveTrue(Long id);
 
     @Query("""

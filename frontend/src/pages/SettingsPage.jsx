@@ -167,37 +167,41 @@ const SettingsPage = () => {
                                 </Button>
                             </div>
 
-                            <div className="flex items-center justify-between gap-4">
-                                <div>
-                                    <div className="font-medium text-amber-600 dark:text-amber-500">Deactivate Account</div>
-                                    <div className="text-sm text-muted-foreground mt-1">
-                                        Disable your account without deleting your data.
+                            {user?.role !== 'ADMIN' && (
+                                <>
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div>
+                                            <div className="font-medium text-amber-600 dark:text-amber-500">Deactivate Account</div>
+                                            <div className="text-sm text-muted-foreground mt-1">
+                                                Disable your account without deleting your data.
+                                            </div>
+                                        </div>
+                                        <Button
+                                            variant="secondary"
+                                            disabled={isBusy}
+                                            onClick={handleDeactivate}
+                                        >
+                                            {accountAction === 'deactivate' ? 'Deactivating...' : 'Deactivate'}
+                                        </Button>
                                     </div>
-                                </div>
-                                <Button
-                                    variant="secondary"
-                                    disabled={isBusy}
-                                    onClick={handleDeactivate}
-                                >
-                                    {accountAction === 'deactivate' ? 'Deactivating...' : 'Deactivate'}
-                                </Button>
-                            </div>
 
-                            <div className="flex items-center justify-between gap-4">
-                                <div>
-                                    <div className="font-medium text-destructive">Delete Account</div>
-                                    <div className="text-sm text-muted-foreground mt-1">
-                                        Permanently remove your account and related data.
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div>
+                                            <div className="font-medium text-destructive">Delete Account</div>
+                                            <div className="text-sm text-muted-foreground mt-1">
+                                                Permanently remove your account and related data.
+                                            </div>
+                                        </div>
+                                        <Button
+                                            variant="destructive"
+                                            disabled={isBusy}
+                                            onClick={handleDelete}
+                                        >
+                                            {accountAction === 'delete' ? 'Deleting...' : 'Delete'}
+                                        </Button>
                                     </div>
-                                </div>
-                                <Button
-                                    variant="destructive"
-                                    disabled={isBusy}
-                                    onClick={handleDelete}
-                                >
-                                    {accountAction === 'delete' ? 'Deleting...' : 'Delete'}
-                                </Button>
-                            </div>
+                                </>
+                            )}
 
                             {accountError && (
                                 <p className="text-sm text-destructive">{accountError}</p>

@@ -71,7 +71,7 @@ public class AdminService {
         }
 
         public Page<AdminUserResponse> getUsers(Pageable pageable) {
-                return userRepository.findAll(pageable)
+                return userRepository.findByRoleNot(com.Project.Continuum.enums.UserRole.ADMIN, pageable)
                                 .map(this::toAdminUserResponse);
         }
 

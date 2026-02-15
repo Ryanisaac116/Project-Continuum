@@ -52,22 +52,45 @@ const Toast = ({ notification, onDismiss }) => {
         }
     };
 
+    let isAdmin = false;
+    try {
+        if (notification.payload) {
+            const p = JSON.parse(notification.payload);
+            if (p.role === 'ADMIN') isAdmin = true;
+        }
+    } catch (e) { /* ignore */ }
+
     return (
         <div
             onClick={handleClick}
-            className="bg-white dark:bg-gray-900 rounded-lg shadow-lg dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 flex items-start gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition animate-slide-in max-w-sm"
+            className={`rounded-lg shadow-lg dark:shadow-black/30 border p-4 flex items-start gap-3 cursor-pointer transition animate-slide-in max-w-sm ${isAdmin
+                ? 'bg-purple-100 dark:bg-purple-900 border-purple-300 dark:border-purple-600 ring-2 ring-purple-500 shadow-purple-500/20'
+                : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
         >
             <span className="text-2xl">{getIcon()}</span>
             <div className="flex-1 min-w-0">
-                <div className="font-medium text-gray-900 dark:text-white text-sm">{notification.title}</div>
-                <div className="text-gray-600 dark:text-gray-400 text-xs truncate">{notification.message}</div>
+                <div className={`font-medium text-sm flex items-center gap-2 ${isAdmin ? 'text-indigo-900 dark:text-indigo-100' : 'text-gray-900 dark:text-white'}`}>
+                    {notification.title}
+                    {isAdmin && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-red-500 to-purple-600 text-white shadow-sm shrink-0">
+                            ADMIN
+                        </span>
+                    )}
+                </div>
+                <div className={`text-xs truncate ${isAdmin ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-400'}`}>
+                    {notification.message}
+                </div>
             </div>
             <button
                 onClick={(e) => {
                     e.stopPropagation();
                     onDismiss();
                 }}
-                className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+                className={`transition-colors ${isAdmin
+                    ? 'text-indigo-400 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-200'
+                    : 'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300'
+                    }`}
             >
                 ✕
             </button>

@@ -89,14 +89,17 @@ public class ChatService {
                 broadcastToBoth(sender.getId(), recipient.getId(), response);
 
                 // Create notification for recipient
+                String senderName = sender.getName();
+
                 notificationService.createNotification(
                                 recipient.getId(),
                                 NotificationType.CHAT_MESSAGE,
-                                "New message from " + sender.getName(),
+                                "New message from " + senderName,
                                 request.getContent().length() > 50
                                                 ? request.getContent().substring(0, 50) + "..."
                                                 : request.getContent(),
-                                "{\"senderId\":" + sender.getId() + "}");
+                                "{\"senderId\":" + sender.getId() + ",\"role\":\""
+                                                + (sender.getRole() != null ? sender.getRole() : "USER") + "\"}");
 
                 return response;
 
@@ -295,13 +298,30 @@ public class ChatService {
                         throw new ResourceNotFoundException("User not found");
                 }
 
-                // Verify Friendship
+                // Verify Friendship (Bypass for Admins)
                 User u1 = userId < otherUserId ? userRepository.getReferenceById(userId)
                                 : userRepository.getReferenceById(otherUserId);
                 User u2 = userId < otherUserId ? userRepository.getReferenceById(otherUserId)
                                 : userRepository.getReferenceById(userId);
 
-                if (!friendRepository.existsByUser1_IdAndUser2_IdAndStatus(u1.getId(), u2.getId(),
+                boolean isAdminInvolved = false;
+                // We need actual User objects to check roles, not references (proxies)
+                // Since repositories were used to get references, we might need to fetch them
+                // if we want to check roles.
+                // However, optimization: check if the 'userId' (current user) is admin.
+                User currentUser = userRepository.findById(userId)
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+                // Also check other user role just in case
+                User otherUser = userRepository.findById(otherUserId)
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+                if (currentUser.getRole() == com.Project.Continuum.enums.UserRole.ADMIN ||
+                                otherUser.getRole() == com.Project.Continuum.enums.UserRole.ADMIN) {
+                        isAdminInvolved = true;
+                }
+
+                if (!isAdminInvolved && !friendRepository.existsByUser1_IdAndUser2_IdAndStatus(u1.getId(), u2.getId(),
                                 com.Project.Continuum.enums.FriendStatus.ACCEPTED)) {
                         throw new AccessDeniedException("You can only view chat history with friends.");
                 }
@@ -329,6 +349,12 @@ public class ChatService {
 
         // ==================== HELPER METHODS ====================
         private void verifyFriendship(User sender, User recipient) {
+                // Admins can chat with anyone
+                if (sender.getRole() == com.Project.Continuum.enums.UserRole.ADMIN ||
+                                recipient.getRole() == com.Project.Continuum.enums.UserRole.ADMIN) {
+                        return;
+                }
+
                 User u1 = sender.getId() < recipient.getId() ? sender : recipient;
                 User u2 = sender.getId() < recipient.getId() ? recipient : sender;
 

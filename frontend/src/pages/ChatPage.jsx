@@ -216,14 +216,29 @@ const ChatPage = () => {
 
             try {
                 const friendsRes = await friendsApi.getFriends();
-                const friendData = friendsRes.data.find(
+                let friendData = friendsRes.data.find(
                     (f) => f.friendUserId === Number(friendId)
                 );
 
                 if (!friendData) {
-                    setError('Friend not found');
-                    setLoading(false);
-                    return;
+                    console.log('Friend not found in list, attempting fallback fetch for ID:', friendId);
+                    // Fallback: Try to fetch user directly (e.g. for Admins messaging non-friends)
+                    try {
+                        const userRes = await apiClient.get(`/users/${friendId}`);
+                        console.log('Fallback fetch success:', userRes.data);
+                        // Map UserResponse to friend format expected by ChatPage
+                        friendData = {
+                            friendUserId: userRes.data.id,
+                            name: userRes.data.name,
+                            presenceStatus: userRes.data.presenceStatus || 'OFFLINE',
+                            lastSeenAt: userRes.data.lastSeenAt
+                        };
+                    } catch (err) {
+                        console.error('User fallback fetch failed:', err);
+                        setError(`User not found (ID: ${friendId}) - ${err.message}`);
+                        setLoading(false);
+                        return;
+                    }
                 }
 
                 setFriend(friendData);
@@ -665,7 +680,14 @@ const ChatPage = () => {
                             {friend?.name?.charAt(0)?.toUpperCase() || '?'}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate text-gray-900 dark:text-white">{friend?.name}</div>
+                            <div className="flex items-center gap-2">
+                                <div className="font-medium truncate text-gray-900 dark:text-white">{friend?.name}</div>
+                                {friend?.role === 'ADMIN' && (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-red-500 to-purple-600 text-white shadow-sm">
+                                        ADMIN
+                                    </span>
+                                )}
+                            </div>
                             <PresenceBadge
                                 status={friend?.presenceStatus}
                                 lastSeenAt={friend?.lastSeenAt}

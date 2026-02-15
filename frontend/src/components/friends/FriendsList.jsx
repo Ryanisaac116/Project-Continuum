@@ -61,8 +61,13 @@ const FriendsList = ({ friends }) => {
                                 </div>
 
                                 <div className="min-w-0 flex-1">
-                                    <div className="font-semibold text-lg truncate group-hover:text-primary transition-colors">
-                                        {friend.name}
+                                    <div className="flex items-center gap-2 font-semibold text-lg truncate group-hover:text-primary transition-colors">
+                                        <span>{friend.name}</span>
+                                        {friend.role === 'ADMIN' && (
+                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-red-500 to-purple-600 text-white shadow-sm shrink-0">
+                                                ADMIN
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="flex items-center gap-2 mt-0.5">
                                         <PresenceBadge

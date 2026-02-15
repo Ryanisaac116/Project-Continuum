@@ -16,6 +16,12 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
 
     List<ChatMessage> findByRecipient_IdAndDeliveredAtIsNull(Long recipientId);
 
+    @Query("SELECT DISTINCT c.sender.id FROM ChatMessage c WHERE c.recipient.id = :userId")
+    List<Long> findDistinctSendersByRecipientId(@Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT c.recipient.id FROM ChatMessage c WHERE c.sender.id = :userId")
+    List<Long> findDistinctRecipientsBySenderId(@Param("userId") Long userId);
+
     @Query("SELECT c.id FROM ChatMessage c WHERE c.sender.id = :userId OR c.recipient.id = :userId")
     List<Long> findIdsByUserId(@Param("userId") Long userId);
 

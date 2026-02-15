@@ -82,11 +82,11 @@ const AdminMessagesTab = () => {
                     <table className="w-full">
                         <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-b border-gray-200 dark:border-gray-700">
                             <tr>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                                <th className="hidden md:table-cell px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sender</th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Subject</th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                                <th className="hidden sm:table-cell px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
                                 <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
@@ -112,7 +112,7 @@ const AdminMessagesTab = () => {
                             ) : (
                                 messages.map((msg) => (
                                     <tr key={msg.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
+                                        <td className="hidden md:table-cell px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
                                             {new Date(msg.createdAt).toLocaleDateString()}
                                         </td>
                                         <td className="px-6 py-4">{getTypeBadge(msg.type)}</td>
@@ -123,7 +123,7 @@ const AdminMessagesTab = () => {
                                             <p className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs">{msg.subject}</p>
                                             <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">{msg.message}</p>
                                         </td>
-                                        <td className="px-6 py-4">{getStatusBadge(msg.status)}</td>
+                                        <td className="hidden sm:table-cell px-6 py-4">{getStatusBadge(msg.status)}</td>
                                         <td className="px-6 py-4 text-right">
                                             {msg.status === 'OPEN' && (
                                                 <Button

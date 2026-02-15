@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { adminApi } from '../../api/adminApi';
 import AdminActivityPanel from '../../components/admin/AdminActivityPanel';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { useDialog } from '../../context/DialogContext';
 import { Button } from '@/components/ui/button';
-import { X, UserX, UserCheck, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, UserX, UserCheck, Activity, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react';
 
 const StatusBadge = ({ active }) => (
     <span
@@ -45,6 +46,7 @@ const PresenceBadge = ({ status }) => {
 };
 
 const AdminUsersTab = () => {
+    const navigate = useNavigate();
     const dialog = useDialog();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -129,13 +131,13 @@ const AdminUsersTab = () => {
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                     User
                                 </th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                <th className="hidden sm:table-cell px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                     Role
                                 </th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                     Status
                                 </th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                <th className="hidden md:table-cell px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                     Presence
                                 </th>
                                 <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -171,13 +173,13 @@ const AdminUsersTab = () => {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="hidden sm:table-cell px-6 py-4">
                                             <RoleBadge role={user.role} />
                                         </td>
                                         <td className="px-6 py-4">
                                             <StatusBadge active={user.active} />
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="hidden md:table-cell px-6 py-4">
                                             <PresenceBadge status={user.presenceStatus} />
                                         </td>
                                         <td className="px-6 py-4 text-right">
@@ -226,6 +228,15 @@ const AdminUsersTab = () => {
                                                 >
                                                     <Activity className="w-4 h-4 mr-1.5" />
                                                     Activity
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => navigate(`/chat/${user.id}`)}
+                                                    className="text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+                                                >
+                                                    <MessageSquare className="w-4 h-4 mr-1.5" />
+                                                    Message
                                                 </Button>
                                             </div>
                                         </td>

@@ -222,47 +222,71 @@ const NotificationCenter = () => {
                                 </div>
                             ) : (
                                 <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                                    {notifications.map((n) => (
-                                        <div
-                                            key={n.id}
-                                            onClick={() => handleNotificationClick(n)}
-                                            className={`px-5 py-4 flex gap-4 cursor-pointer transition-all duration-200 group relative ${!n.isRead
-                                                    ? 'bg-indigo-50/50 dark:bg-indigo-900/10 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
-                                                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                                                }`}
-                                        >
-                                            {/* Unread Indicator Dot */}
-                                            {!n.isRead && (
-                                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-500 rounded-r-full" />
-                                            )}
+                                    {notifications.map((n) => {
+                                        let isAdmin = false;
+                                        // Check for manual admin types or payload role
+                                        if (n.type === 'ADMIN_SUPPORT' || n.type === 'ADMIN_REPORT') {
+                                            isAdmin = true;
+                                        } else {
+                                            try {
+                                                if (n.payload) {
+                                                    const p = JSON.parse(n.payload);
+                                                    if (p.role === 'ADMIN') isAdmin = true;
+                                                }
+                                            } catch (e) { /* ignore */ }
+                                        }
 
-                                            <div className={`mt-1 flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${!n.isRead ? 'bg-white dark:bg-slate-800 shadow-sm' : 'bg-slate-100 dark:bg-slate-800/50'
-                                                }`}>
-                                                {getIcon(n.type)}
-                                            </div>
+                                        return (
+                                            <div
+                                                key={n.id}
+                                                onClick={() => handleNotificationClick(n)}
+                                                className={`px-5 py-4 flex gap-4 cursor-pointer transition-all duration-200 group relative ${isAdmin
+                                                    ? (!n.isRead ? 'bg-purple-100 dark:bg-purple-900/40 border-l-4 border-l-purple-500' : 'bg-purple-50 dark:bg-purple-900/20 border-l-4 border-l-purple-300')
+                                                    : (!n.isRead ? 'bg-indigo-50/50 dark:bg-indigo-900/10 hover:bg-indigo-50 dark:hover:bg-indigo-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50')
+                                                    }`}
+                                            >
+                                                {/* Unread Indicator Dot */}
+                                                {!n.isRead && (
+                                                    <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full ${isAdmin ? 'bg-purple-500' : 'bg-indigo-500'}`} />
+                                                )}
 
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-start justify-between gap-2 mb-1">
-                                                    <p className={`text-sm ${!n.isRead ? 'font-semibold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-300'}`}>
-                                                        {n.title}
-                                                    </p>
-                                                    <span className="text-[10px] font-medium text-slate-400 whitespace-nowrap bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full">
-                                                        {formatTime(n.createdAt)}
-                                                    </span>
+                                                <div className={`mt-1 flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${!n.isRead ? 'bg-white dark:bg-slate-800 shadow-sm' : 'bg-slate-100 dark:bg-slate-800/50'
+                                                    }`}>
+                                                    {getIcon(n.type)}
                                                 </div>
-                                                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2">
-                                                    {n.message}
-                                                </p>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-start justify-between gap-2 mb-1">
+                                                        <div className="flex items-center gap-1.5 min-w-0">
+                                                            <p className={`text-sm truncate ${!n.isRead ? 'font-semibold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-300'}`}>
+                                                                {n.title}
+                                                            </p>
+                                                            {isAdmin && (
+                                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-red-500 to-purple-600 text-white shadow-sm shrink-0">
+                                                                    ADMIN
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[10px] font-medium text-slate-400 whitespace-nowrap bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full shrink-0">
+                                                            {formatTime(n.createdAt)}
+                                                        </span>
+                                                    </div>
+                                                    <p className={`text-xs leading-relaxed line-clamp-2 ${isAdmin ? 'text-indigo-900/70 dark:text-indigo-100/70' : 'text-slate-500 dark:text-slate-400'}`}>
+                                                        {n.message}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })
+                                    }
                                 </div>
                             )}
                         </div>
                     </div>
                 </>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 };
 

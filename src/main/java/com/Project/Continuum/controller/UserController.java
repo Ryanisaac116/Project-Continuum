@@ -22,6 +22,11 @@ public class UserController {
         return userService.getUser(userId);
     }
 
+    @GetMapping("/{id}")
+    public UserResponse getUserById(@PathVariable Long id) {
+        return userService.getUser(id);
+    }
+
     @PutMapping("/me")
     public UserResponse updateUser(@RequestBody UserUpdateRequest request) {
         Long userId = SecurityUtils.getCurrentUserId();
