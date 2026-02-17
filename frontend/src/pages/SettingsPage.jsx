@@ -15,6 +15,7 @@ const SettingsPage = () => {
         isSupported,
         isSubscribed,
         permission,
+        error: pushError,
         loading: pushLoading,
         enablePush,
         disablePush,
@@ -116,6 +117,11 @@ const SettingsPage = () => {
                                 <div className="text-xs text-muted-foreground mt-2">
                                     Status: <span className="font-semibold">{getPushStatusLabel()}</span>
                                 </div>
+                                {pushError && (
+                                    <div className="text-xs text-red-600 dark:text-red-400 mt-2">
+                                        {pushError}
+                                    </div>
+                                )}
                             </div>
 
                             <Button

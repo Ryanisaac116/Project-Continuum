@@ -101,4 +101,28 @@ public class PushController {
 
         return ResponseEntity.ok(Map.of("success", true));
     }
+
+    /**
+     * Send a test push to current user for prod verification.
+     */
+    @PostMapping("/test")
+    public ResponseEntity<Map<String, Object>> sendTestPush(@RequestBody(required = false) Map<String, String> body) {
+        Long userId = SecurityUtils.getCurrentUserId();
+
+        String title = body != null && body.get("title") != null && !body.get("title").isBlank()
+                ? body.get("title")
+                : "Test Push";
+        String message = body != null && body.get("message") != null && !body.get("message").isBlank()
+                ? body.get("message")
+                : "Push pipeline is working.";
+        String data = body != null && body.get("data") != null && !body.get("data").isBlank()
+                ? body.get("data")
+                : "{\"url\":\"/settings\"}";
+
+        pushService.sendToUser(userId, title, message, data);
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Test push attempted"));
+    }
 }

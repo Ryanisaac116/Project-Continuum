@@ -45,6 +45,7 @@ export const usePushNotifications = () => {
     const [isSubscribed, setIsSubscribed] = useState(false);
     const [loading, setLoading] = useState(true);
     const [permission, setPermission] = useState('default'); // default, granted, denied
+    const [error, setError] = useState('');
 
     useEffect(() => {
         // 1. Check browser support
@@ -59,6 +60,7 @@ export const usePushNotifications = () => {
 
     const checkSubscription = async () => {
         try {
+            setError('');
             if (Notification.permission === 'denied') {
                 setLoading(false);
                 return;
@@ -78,6 +80,7 @@ export const usePushNotifications = () => {
             const backendPublicKey = data?.publicKey;
             if (!backendPublicKey) {
                 setIsSubscribed(false);
+                setError('Push is not configured on server');
                 return;
             }
 
@@ -92,10 +95,22 @@ export const usePushNotifications = () => {
                 return;
             }
 
-            await pushApi.subscribe(subscription);
-            setIsSubscribed(true);
+            try {
+                await pushApi.subscribe(subscription);
+                setIsSubscribed(true);
+            } catch {
+                // Existing subscription can be stale/corrupt after account switches.
+                await subscription.unsubscribe();
+                const freshSubscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(backendPublicKey),
+                });
+                await pushApi.subscribe(freshSubscription);
+                setIsSubscribed(true);
+            }
         } catch (err) {
             console.error('Failed to check push subscription', err);
+            setError(err?.response?.data?.message || err?.message || 'Failed to initialize push');
         } finally {
             setLoading(false);
         }
@@ -106,6 +121,7 @@ export const usePushNotifications = () => {
 
         try {
             setLoading(true);
+            setError('');
 
             // 1. Ask Permission
             const perm = await Notification.requestPermission();
@@ -130,11 +146,17 @@ export const usePushNotifications = () => {
             const existingSubscription = await registration.pushManager.getSubscription();
             if (existingSubscription) {
                 if (subscriptionKeyMatches(existingSubscription, backendPublicKey)) {
-                    await pushApi.subscribe(existingSubscription);
-                    setIsSubscribed(true);
-                    return true;
+                    try {
+                        await pushApi.subscribe(existingSubscription);
+                        setIsSubscribed(true);
+                        return true;
+                    } catch {
+                        await existingSubscription.unsubscribe();
+                    }
                 }
-                await existingSubscription.unsubscribe();
+                if (await registration.pushManager.getSubscription()) {
+                    await existingSubscription.unsubscribe();
+                }
             }
 
             // 5. Subscribe in Browser
@@ -150,6 +172,7 @@ export const usePushNotifications = () => {
             return true;
         } catch (err) {
             console.error('Failed to enable push notifications', err);
+            setError(err?.response?.data?.message || err?.message || 'Failed to enable push');
             return false;
         } finally {
             setLoading(false);
@@ -159,6 +182,7 @@ export const usePushNotifications = () => {
     const disablePush = async () => {
         try {
             setLoading(true);
+            setError('');
             const registration = await navigator.serviceWorker.ready;
             const subscription = await registration.pushManager.getSubscription();
 
@@ -173,6 +197,7 @@ export const usePushNotifications = () => {
             }
         } catch (err) {
             console.error('Failed to disable push', err);
+            setError(err?.response?.data?.message || err?.message || 'Failed to disable push');
         } finally {
             setLoading(false);
         }
@@ -182,6 +207,7 @@ export const usePushNotifications = () => {
         isSupported,
         isSubscribed,
         permission,
+        error,
         loading,
         enablePush,
         disablePush

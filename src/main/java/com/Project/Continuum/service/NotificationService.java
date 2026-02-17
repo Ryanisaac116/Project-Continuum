@@ -8,6 +8,8 @@ import com.Project.Continuum.exception.AccessDeniedException;
 import com.Project.Continuum.exception.ResourceNotFoundException;
 import com.Project.Continuum.repository.NotificationRepository;
 import com.Project.Continuum.store.PresenceStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ import java.util.stream.Collectors;
  */
 @Service
 public class NotificationService {
+    private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
     private final NotificationRepository notificationRepository;
     private final PresenceStore presenceStore;
@@ -86,19 +89,26 @@ public class NotificationService {
 
         notificationRepository.save(notification);
 
-        // Broadcast via WebSocket if user is online
+        // Consider user online only when there is an active socket connection.
+        // Presence status alone can be stale for a short period in prod.
         PresenceStatus status = presenceStore.getStatus(userId);
-        if (status != PresenceStatus.OFFLINE) {
+        int connectionCount = presenceStore.getConnectionCount(userId);
+        boolean hasLiveSocket = connectionCount > 0 && status != PresenceStatus.OFFLINE;
+
+        if (hasLiveSocket) {
             NotificationResponse response = new NotificationResponse(notification);
             messagingTemplate.convertAndSendToUser(
                     String.valueOf(userId),
                     "/queue/notifications",
                     response);
-        } else {
-            // User is offline - send push notification for important types
-            if (PUSH_ENABLED_TYPES.contains(type)) {
-                pushService.sendToUser(userId, title, message, payload);
-            }
+            return notification;
+        }
+
+        // User is offline/unreachable - send push notification for important types
+        if (PUSH_ENABLED_TYPES.contains(type)) {
+            pushService.sendToUser(userId, title, message, payload);
+            log.debug("Push attempted for user {} type {} (status={}, connections={})",
+                    userId, type, status, connectionCount);
         }
 
         return notification;
