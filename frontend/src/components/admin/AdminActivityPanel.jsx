@@ -6,6 +6,7 @@ const AdminActivityPanel = ({ userId }) => {
     const [activity, setActivity] = useState(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [error, setError] = useState(null);
 
     const fetchActivity = useCallback(async ({ background = false } = {}) => {
         if (background) {
@@ -17,8 +18,10 @@ const AdminActivityPanel = ({ userId }) => {
         try {
             const { data } = await adminApi.getUserActivity(userId);
             setActivity(data);
+            setError(null);
         } catch (err) {
             console.error('Failed to load user activity:', err);
+            setError(err.response?.data?.message || 'Failed to load user activity');
         } finally {
             if (background) {
                 setRefreshing(false);
@@ -30,6 +33,7 @@ const AdminActivityPanel = ({ userId }) => {
 
     useEffect(() => {
         setActivity(null);
+        setError(null);
         setLoading(true);
         fetchActivity();
     }, [fetchActivity]);
@@ -58,6 +62,8 @@ const AdminActivityPanel = ({ userId }) => {
                         <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-3/4" />
                         <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-1/2" />
                     </div>
+                ) : error ? (
+                    <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
                 ) : !activity ? (
                     <p className="text-gray-500 dark:text-gray-400">No data present.</p>
                 ) : (
@@ -102,28 +108,6 @@ const AdminActivityPanel = ({ userId }) => {
                             </div>
                         </div>
 
-                        <div>
-                            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Recent System Activity</h4>
-                            {(activity.recentActivity || []).length > 0 ? (
-                                <div className="space-y-3">
-                                    {(activity.recentActivity || []).map((item, i) => (
-                                        <div key={i} className="flex gap-3 text-sm">
-                                            <span className="text-gray-400 font-mono text-xs whitespace-nowrap pt-0.5">
-                                                {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
-                                            <div>
-                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 mr-2">
-                                                    {item.type}
-                                                </span>
-                                                <span className="text-gray-600 dark:text-gray-300">{item.description}</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-sm text-gray-500 dark:text-gray-400 italic">No data present.</p>
-                            )}
-                        </div>
                     </div>
                 )}
             </div>

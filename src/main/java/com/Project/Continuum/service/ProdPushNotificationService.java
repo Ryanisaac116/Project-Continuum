@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import jakarta.annotation.PostConstruct;
 import java.security.Security;
@@ -48,7 +49,11 @@ public class ProdPushNotificationService implements PushNotificationService {
 
     @PostConstruct
     public void init() {
-        if (vapidPublicKey == null || vapidPrivateKey == null || vapidSubject == null) {
+        vapidPublicKey = vapidPublicKey != null ? vapidPublicKey.trim() : null;
+        vapidPrivateKey = vapidPrivateKey != null ? vapidPrivateKey.trim() : null;
+        vapidSubject = vapidSubject != null ? vapidSubject.trim() : null;
+
+        if (!StringUtils.hasText(vapidPublicKey) || !StringUtils.hasText(vapidPrivateKey) || !StringUtils.hasText(vapidSubject)) {
             log.warn("VAPID keys missing. Push notification service will be DISABLED.");
             return;
         }
@@ -108,7 +113,7 @@ public class ProdPushNotificationService implements PushNotificationService {
 
     @Override
     public String getPublicKey() {
-        return vapidPublicKey;
+        return StringUtils.hasText(vapidPublicKey) ? vapidPublicKey : "";
     }
 
     @Override

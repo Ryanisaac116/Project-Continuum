@@ -30,20 +30,8 @@ const RoleBadge = ({ role }) => (
     </span>
 );
 
-const PresenceBadge = ({ status }) => {
-    const styles = {
-        ONLINE: 'bg-emerald-500',
-        AWAY: 'bg-yellow-500',
-        OFFLINE: 'bg-gray-400',
-    };
-
-    return (
-        <span className="inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
-            <span className={`w-2 h-2 rounded-full ${styles[status] || styles.OFFLINE}`} />
-            {status}
-        </span>
-    );
-};
+const isOnlineStatus = (status) =>
+    status === 'ONLINE' || status === 'BUSY' || status === 'IN_SESSION';
 
 const AdminUsersTab = () => {
     const navigate = useNavigate();
@@ -63,7 +51,13 @@ const AdminUsersTab = () => {
 
         try {
             const { data } = await adminApi.getUsers(page, 20);
-            setUsers(data.content);
+            const sortedUsers = [...(data.content || [])].sort((a, b) => {
+                const aOnline = isOnlineStatus(a.presenceStatus);
+                const bOnline = isOnlineStatus(b.presenceStatus);
+                if (aOnline === bOnline) return 0;
+                return aOnline ? -1 : 1;
+            });
+            setUsers(sortedUsers);
             setTotalPages(data.totalPages);
             setError(null);
         } catch (err) {
@@ -137,10 +131,7 @@ const AdminUsersTab = () => {
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                     Status
                                 </th>
-                                <th className="hidden md:table-cell px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                    Presence
-                                </th>
-                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                <th className="px-4 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                     Actions
                                 </th>
                             </tr>
@@ -149,14 +140,14 @@ const AdminUsersTab = () => {
                             {loading ? (
                                 [...Array(5)].map((_, i) => (
                                     <tr key={i}>
-                                        <td className="px-6 py-4" colSpan={5}>
+                                        <td className="px-6 py-4" colSpan={4}>
                                             <div className="h-6 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
                                         </td>
                                     </tr>
                                 ))
                             ) : users.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                                    <td colSpan={4} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                                         No users found
                                     </td>
                                 </tr>
@@ -165,8 +156,16 @@ const AdminUsersTab = () => {
                                     <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-medium">
-                                                    {user.name?.charAt(0)?.toUpperCase() || '?'}
+                                                <div className="relative">
+                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-medium">
+                                                        {user.name?.charAt(0)?.toUpperCase() || '?'}
+                                                    </div>
+                                                    <span
+                                                        title={isOnlineStatus(user.presenceStatus) ? 'Online' : 'Offline'}
+                                                        className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-gray-900 ${
+                                                            isOnlineStatus(user.presenceStatus) ? 'bg-emerald-500' : 'bg-gray-400'
+                                                        }`}
+                                                    />
                                                 </div>
                                                 <div>
                                                     <p className="font-medium text-gray-900 dark:text-white">{user.name}</p>
@@ -179,11 +178,8 @@ const AdminUsersTab = () => {
                                         <td className="px-6 py-4">
                                             <StatusBadge active={user.active} />
                                         </td>
-                                        <td className="hidden md:table-cell px-6 py-4">
-                                            <PresenceBadge status={user.presenceStatus} />
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-1">
+                                        <td className="px-4 py-4 text-left">
+                                            <div className="flex items-center justify-start gap-1">
                                                 {user.active && user.role !== 'ADMIN' && (
                                                     <Button
                                                         variant="ghost"

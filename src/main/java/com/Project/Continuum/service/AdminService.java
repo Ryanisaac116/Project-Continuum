@@ -99,19 +99,6 @@ public class AdminService {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-                // Get recent exchange requests (capped at 10 for Phase 1)
-                var recentRequests = skillExchangeRequestRepository
-                                .findTop10BySender_IdOrReceiver_IdOrderByCreatedAtDesc(userId, userId);
-
-                List<UserActivityResponse.ActivityItem> activityItems = recentRequests.stream()
-                                .map(req -> new UserActivityResponse.ActivityItem(
-                                                "EXCHANGE_REQUEST",
-                                                "Exchange request with user: " + (req.getSender().getId().equals(userId)
-                                                                ? req.getReceiver().getName()
-                                                                : req.getSender().getName()),
-                                                req.getCreatedAt()))
-                                .toList();
-
                 return new UserActivityResponse(
                                 user.getCreatedAt(),
                                 user.getLastSeenAt(),
@@ -120,7 +107,7 @@ public class AdminService {
                                 userSkillRepository.countByUser_IdAndSkillType(userId, SkillType.TEACH),
                                 userSkillRepository.countByUser_IdAndSkillType(userId, SkillType.LEARN),
                                 exchangeSessionRepository.countByUserIdAndStatus(userId, ExchangeStatus.COMPLETED),
-                                activityItems);
+                                List.of());
         }
 
         private AdminUserResponse toAdminUserResponse(User user) {
