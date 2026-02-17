@@ -17,6 +17,7 @@ import jakarta.annotation.PostConstruct;
 import java.security.Security;
 import java.time.Instant;
 import java.util.List;
+import java.util.Base64;
 
 /**
  * ProdPushNotificationService - Real implementation for PROD.
@@ -49,12 +50,17 @@ public class ProdPushNotificationService implements PushNotificationService {
 
     @PostConstruct
     public void init() {
-        vapidPublicKey = vapidPublicKey != null ? vapidPublicKey.trim() : null;
-        vapidPrivateKey = vapidPrivateKey != null ? vapidPrivateKey.trim() : null;
+        vapidPublicKey = normalizeVapidKey(vapidPublicKey);
+        vapidPrivateKey = normalizeVapidKey(vapidPrivateKey);
         vapidSubject = vapidSubject != null ? vapidSubject.trim() : null;
 
         if (!StringUtils.hasText(vapidPublicKey) || !StringUtils.hasText(vapidPrivateKey) || !StringUtils.hasText(vapidSubject)) {
             log.warn("VAPID keys missing. Push notification service will be DISABLED.");
+            return;
+        }
+
+        if (!isValidVapidPublicKey(vapidPublicKey) || !isValidVapidPrivateKey(vapidPrivateKey)) {
+            log.warn("Invalid VAPID key format. Push notification service will be DISABLED.");
             return;
         }
 
@@ -184,5 +190,41 @@ public class ProdPushNotificationService implements PushNotificationService {
                 .replace("\"", "\\\"")
                 .replace("\n", "\\n")
                 .replace("\r", "\\r");
+    }
+
+    private static String normalizeVapidKey(String value) {
+        if (value == null) {
+            return null;
+        }
+        String key = value.trim();
+        if ((key.startsWith("\"") && key.endsWith("\"")) || (key.startsWith("'") && key.endsWith("'"))) {
+            key = key.substring(1, key.length() - 1);
+        }
+        return key
+                .replaceAll("\\s+", "")
+                .replace('+', '-')
+                .replace('/', '_')
+                .replaceAll("=+$", "");
+    }
+
+    private static boolean isValidVapidPublicKey(String key) {
+        byte[] decoded = decodeBase64Url(key);
+        return decoded != null && decoded.length == 65;
+    }
+
+    private static boolean isValidVapidPrivateKey(String key) {
+        byte[] decoded = decodeBase64Url(key);
+        return decoded != null && decoded.length == 32;
+    }
+
+    private static byte[] decodeBase64Url(String key) {
+        try {
+            String base64 = key.replace('-', '+').replace('_', '/');
+            int padding = (4 - (base64.length() % 4)) % 4;
+            String padded = base64 + "=".repeat(padding);
+            return Base64.getDecoder().decode(padded);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 }

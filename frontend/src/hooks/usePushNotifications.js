@@ -1,6 +1,22 @@
 import { useState, useEffect } from 'react';
 import { pushApi } from '../api/push';
 
+function sanitizeVapidPublicKey(value) {
+    if (!value) return '';
+    let key = String(value).trim();
+    if (
+        (key.startsWith('"') && key.endsWith('"')) ||
+        (key.startsWith("'") && key.endsWith("'"))
+    ) {
+        key = key.slice(1, -1);
+    }
+    return key
+        .replace(/\s+/g, '')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/g, '');
+}
+
 // Helper: Convert VAPID key
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -36,8 +52,18 @@ function subscriptionKeyMatches(subscription, backendPublicKey) {
     const current = subscription?.options?.applicationServerKey;
     if (!current || !backendPublicKey) return true;
     const currentKey = arrayBufferToBase64Url(current);
-    const expectedKey = normalizeBase64Url(backendPublicKey);
+    const expectedKey = normalizeBase64Url(sanitizeVapidPublicKey(backendPublicKey));
     return currentKey === expectedKey;
+}
+
+function getValidatedApplicationServerKey(rawKey) {
+    const sanitized = sanitizeVapidPublicKey(rawKey);
+    const keyBytes = urlBase64ToUint8Array(sanitized);
+    // Uncompressed P-256 public key must be 65 bytes for Web Push.
+    if (keyBytes.byteLength !== 65) {
+        throw new Error('Invalid VAPID public key format');
+    }
+    return { sanitized, keyBytes };
 }
 
 export const usePushNotifications = () => {
@@ -77,7 +103,7 @@ export const usePushNotifications = () => {
 
             // Keep backend in sync with existing browser subscription.
             const { data } = await pushApi.getPublicKey();
-            const backendPublicKey = data?.publicKey;
+            const backendPublicKey = sanitizeVapidPublicKey(data?.publicKey);
             if (!backendPublicKey) {
                 setIsSubscribed(false);
                 setError('Push is not configured on server');
@@ -86,9 +112,10 @@ export const usePushNotifications = () => {
 
             if (!subscriptionKeyMatches(subscription, backendPublicKey)) {
                 await subscription.unsubscribe();
+                const { keyBytes: applicationServerKey } = getValidatedApplicationServerKey(backendPublicKey);
                 const freshSubscription = await registration.pushManager.subscribe({
                     userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(backendPublicKey),
+                    applicationServerKey,
                 });
                 await pushApi.subscribe(freshSubscription);
                 setIsSubscribed(true);
@@ -101,9 +128,10 @@ export const usePushNotifications = () => {
             } catch {
                 // Existing subscription can be stale/corrupt after account switches.
                 await subscription.unsubscribe();
+                const { keyBytes: applicationServerKey } = getValidatedApplicationServerKey(backendPublicKey);
                 const freshSubscription = await registration.pushManager.subscribe({
                     userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(backendPublicKey),
+                    applicationServerKey,
                 });
                 await pushApi.subscribe(freshSubscription);
                 setIsSubscribed(true);
@@ -136,11 +164,11 @@ export const usePushNotifications = () => {
 
             // 3. Get Public Key from Backend
             const { data } = await pushApi.getPublicKey();
-            const backendPublicKey = data?.publicKey;
+            const backendPublicKey = sanitizeVapidPublicKey(data?.publicKey);
             if (!backendPublicKey) {
                 throw new Error('Missing VAPID public key from server');
             }
-            const applicationServerKey = urlBase64ToUint8Array(backendPublicKey);
+            const { keyBytes: applicationServerKey } = getValidatedApplicationServerKey(backendPublicKey);
 
             // 4. Reuse or refresh existing subscription
             const existingSubscription = await registration.pushManager.getSubscription();
