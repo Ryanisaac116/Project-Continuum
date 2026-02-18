@@ -108,6 +108,11 @@ public class PushController {
     @PostMapping("/test")
     public ResponseEntity<Map<String, Object>> sendTestPush(@RequestBody(required = false) Map<String, String> body) {
         Long userId = SecurityUtils.getCurrentUserId();
+        if (!pushService.hasSubscription(userId)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "success", false,
+                    "message", "No active push subscription found for this user"));
+        }
 
         String title = body != null && body.get("title") != null && !body.get("title").isBlank()
                 ? body.get("title")

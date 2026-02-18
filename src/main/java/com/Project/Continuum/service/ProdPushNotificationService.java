@@ -18,6 +18,7 @@ import java.security.Security;
 import java.time.Instant;
 import java.util.List;
 import java.util.Base64;
+import java.nio.charset.StandardCharsets;
 
 /**
  * ProdPushNotificationService - Real implementation for PROD.
@@ -127,10 +128,11 @@ public class ProdPushNotificationService implements PushNotificationService {
         List<PushSubscription> subscriptions = subscriptionRepository.findByUserId(userId);
 
         if (subscriptions.isEmpty()) {
-            log.debug("No push subscriptions for user {}", userId);
+            log.info("No push subscriptions for user {}", userId);
             return;
         }
 
+        log.info("Attempting push delivery to user {} across {} subscription(s)", userId, subscriptions.size());
         String payload = buildPayload(title, body, data);
 
         for (PushSubscription sub : subscriptions) {
@@ -149,7 +151,7 @@ public class ProdPushNotificationService implements PushNotificationService {
                     sub.getEndpoint(),
                     sub.getP256dh(),
                     sub.getAuth(),
-                    payload.getBytes());
+                    payload.getBytes(StandardCharsets.UTF_8));
 
             pushService.send(notification);
 
@@ -164,7 +166,11 @@ public class ProdPushNotificationService implements PushNotificationService {
                     sub.getEndpoint().substring(0, Math.min(50, sub.getEndpoint().length())),
                     e.getMessage());
 
-            if (e.getMessage() != null && e.getMessage().contains("410")) {
+            String msg = e.getMessage() != null ? e.getMessage() : "";
+            boolean staleSubscription =
+                    msg.contains("410") || msg.contains("404") || msg.contains("401") || msg.contains("403")
+                            || msg.toLowerCase().contains("gone") || msg.toLowerCase().contains("unsub");
+            if (staleSubscription) {
                 log.info("Removing expired subscription for user {}", sub.getUserId());
                 subscriptionRepository.delete(sub);
             }

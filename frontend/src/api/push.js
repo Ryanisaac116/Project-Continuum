@@ -26,7 +26,10 @@ export const pushApi = {
 
     // Unsubscribe (Optional, usually handled by browser + simple backend cleanup)
     unsubscribe: (endpoint) =>
-        apiClient.delete('/push/unsubscribe', { data: { endpoint } })
+        apiClient.delete('/push/unsubscribe', { data: { endpoint } }),
+
+    sendTest: (payload = {}) =>
+        apiClient.post('/push/test', payload)
 };
 
 // Helper: Convert ArrayBuffer to URL-safe Base64 (Web Push expects base64url).

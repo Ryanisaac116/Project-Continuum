@@ -66,12 +66,74 @@ function getValidatedApplicationServerKey(rawKey) {
     return { sanitized, keyBytes };
 }
 
+async function subscribeWithRecovery(registration, applicationServerKey) {
+    try {
+        return await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey,
+        });
+    } catch (error) {
+        const message = String(error?.message || '');
+        const isRecoverable =
+            message.toLowerCase().includes('push service error') ||
+            error?.name === 'AbortError' ||
+            error?.name === 'InvalidStateError';
+
+        if (!isRecoverable) {
+            throw error;
+        }
+
+        // If browser already has a usable subscription, reuse it.
+        const existingBeforeRetry = await registration.pushManager.getSubscription();
+        if (existingBeforeRetry) {
+            return existingBeforeRetry;
+        }
+
+        const existing = await registration.pushManager.getSubscription();
+        if (existing) {
+            await existing.unsubscribe().catch(() => { });
+        }
+
+        await registration.update().catch(() => { });
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        try {
+            return await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey,
+            });
+        } catch (retryError) {
+            const retryMessage = String(retryError?.message || '').toLowerCase();
+            const retryRecoverable =
+                retryMessage.includes('push service error') ||
+                retryError?.name === 'AbortError' ||
+                retryError?.name === 'InvalidStateError';
+
+            if (!retryRecoverable) {
+                throw retryError;
+            }
+
+            // Last recovery: re-register service worker and try once more.
+            const freshRegistration = await navigator.serviceWorker.register('/sw.js');
+            await navigator.serviceWorker.ready;
+            await freshRegistration.update().catch(() => { });
+            await new Promise((resolve) => setTimeout(resolve, 300));
+
+            return freshRegistration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey,
+            });
+        }
+    }
+}
+
 export const usePushNotifications = () => {
     const [isSupported, setIsSupported] = useState(false);
     const [isSubscribed, setIsSubscribed] = useState(false);
     const [loading, setLoading] = useState(true);
     const [permission, setPermission] = useState('default'); // default, granted, denied
     const [error, setError] = useState('');
+    const [testSending, setTestSending] = useState(false);
 
     useEffect(() => {
         // 1. Check browser support
@@ -113,10 +175,7 @@ export const usePushNotifications = () => {
             if (!subscriptionKeyMatches(subscription, backendPublicKey)) {
                 await subscription.unsubscribe();
                 const { keyBytes: applicationServerKey } = getValidatedApplicationServerKey(backendPublicKey);
-                const freshSubscription = await registration.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey,
-                });
+                const freshSubscription = await subscribeWithRecovery(registration, applicationServerKey);
                 await pushApi.subscribe(freshSubscription);
                 setIsSubscribed(true);
                 return;
@@ -129,10 +188,7 @@ export const usePushNotifications = () => {
                 // Existing subscription can be stale/corrupt after account switches.
                 await subscription.unsubscribe();
                 const { keyBytes: applicationServerKey } = getValidatedApplicationServerKey(backendPublicKey);
-                const freshSubscription = await registration.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey,
-                });
+                const freshSubscription = await subscribeWithRecovery(registration, applicationServerKey);
                 await pushApi.subscribe(freshSubscription);
                 setIsSubscribed(true);
             }
@@ -161,6 +217,8 @@ export const usePushNotifications = () => {
 
             // 2. Register SW
             const registration = await navigator.serviceWorker.register('/sw.js');
+            await navigator.serviceWorker.ready;
+            await registration.update().catch(() => { });
 
             // 3. Get Public Key from Backend
             const { data } = await pushApi.getPublicKey();
@@ -188,10 +246,7 @@ export const usePushNotifications = () => {
             }
 
             // 5. Subscribe in Browser
-            const subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey
-            });
+            const subscription = await subscribeWithRecovery(registration, applicationServerKey);
 
             // 6. Send to Backend
             await pushApi.subscribe(subscription);
@@ -200,7 +255,13 @@ export const usePushNotifications = () => {
             return true;
         } catch (err) {
             console.error('Failed to enable push notifications', err);
-            setError(err?.response?.data?.message || err?.message || 'Failed to enable push');
+            const rawMessage = err?.response?.data?.message || err?.message || 'Failed to enable push';
+            const normalized = String(rawMessage).toLowerCase();
+            if (normalized.includes('push service error')) {
+                setError('Browser push service rejected registration. Disable VPN/ad-blocker, clear site data, and retry.');
+            } else {
+                setError(rawMessage);
+            }
             return false;
         } finally {
             setLoading(false);
@@ -231,13 +292,34 @@ export const usePushNotifications = () => {
         }
     };
 
+    const sendTestPush = async () => {
+        try {
+            setError('');
+            setTestSending(true);
+            const { data } = await pushApi.sendTest({
+                title: 'Continuum Test',
+                message: 'Push test from Settings',
+                data: '{"url":"/settings"}',
+            });
+            return data;
+        } catch (err) {
+            console.error('Failed to send test push', err);
+            setError(err?.response?.data?.message || err?.message || 'Failed to send test push');
+            return null;
+        } finally {
+            setTestSending(false);
+        }
+    };
+
     return {
         isSupported,
         isSubscribed,
         permission,
         error,
+        testSending,
         loading,
         enablePush,
-        disablePush
+        disablePush,
+        sendTestPush
     };
 };

@@ -16,9 +16,11 @@ const SettingsPage = () => {
         isSubscribed,
         permission,
         error: pushError,
+        testSending,
         loading: pushLoading,
         enablePush,
         disablePush,
+        sendTestPush,
     } = usePushNotifications();
 
     const [accountAction, setAccountAction] = useState(null);
@@ -132,6 +134,17 @@ const SettingsPage = () => {
                                 {pushLoading ? 'Loading...' : isSubscribed ? 'Disable' : 'Enable'}
                             </Button>
                         </CardContent>
+                        {isSubscribed && (
+                            <CardContent className="pt-0">
+                                <Button
+                                    variant="secondary"
+                                    onClick={sendTestPush}
+                                    disabled={testSending || pushLoading}
+                                >
+                                    {testSending ? 'Sending test...' : 'Send Test Push'}
+                                </Button>
+                            </CardContent>
+                        )}
                     </Card>
 
                     <Card>
