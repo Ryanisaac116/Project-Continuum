@@ -4,7 +4,17 @@
 
 self.addEventListener('push', function (event) {
     if (!event.data) {
-        console.log('Push event received but no data');
+        event.waitUntil(
+            self.registration.showNotification('Continuum', {
+                body: 'You have a new notification',
+                icon: '/continuum_logo_transparent.png?v=4',
+                badge: '/continuum_logo_transparent.png?v=4',
+                data: { url: '/' },
+                actions: [
+                    { action: 'open', title: 'View' }
+                ]
+            })
+        );
         return;
     }
 
