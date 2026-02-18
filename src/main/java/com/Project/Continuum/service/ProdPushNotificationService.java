@@ -4,6 +4,9 @@ import com.Project.Continuum.entity.PushSubscription;
 import com.Project.Continuum.repository.PushSubscriptionRepository;
 import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpEntity;
+import org.apache.http.util.EntityUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -153,13 +156,36 @@ public class ProdPushNotificationService implements PushNotificationService {
                     sub.getAuth(),
                     payload.getBytes(StandardCharsets.UTF_8));
 
-            pushService.send(notification);
+            HttpResponse response = pushService.send(notification);
+            int statusCode = response != null && response.getStatusLine() != null
+                    ? response.getStatusLine().getStatusCode()
+                    : -1;
+            String reason = response != null && response.getStatusLine() != null
+                    ? response.getStatusLine().getReasonPhrase()
+                    : "unknown";
 
-            sub.setLastUsedAt(Instant.now());
-            subscriptionRepository.save(sub);
+            if (statusCode >= 200 && statusCode < 300) {
+                sub.setLastUsedAt(Instant.now());
+                subscriptionRepository.save(sub);
+                log.info("Push accepted for user {} endpoint {} (status={} {})",
+                        sub.getUserId(),
+                        sub.getEndpoint().substring(0, Math.min(50, sub.getEndpoint().length())),
+                        statusCode,
+                        reason);
+                return;
+            }
 
-            log.debug("Push sent to user {} endpoint {}", sub.getUserId(),
-                    sub.getEndpoint().substring(0, Math.min(50, sub.getEndpoint().length())));
+            String responseBody = extractResponseBody(response);
+            log.warn("Push rejected for endpoint {} (status={} {}, body={})",
+                    sub.getEndpoint().substring(0, Math.min(50, sub.getEndpoint().length())),
+                    statusCode,
+                    reason,
+                    responseBody);
+
+            if (isStaleStatusCode(statusCode)) {
+                log.info("Removing stale subscription for user {}", sub.getUserId());
+                subscriptionRepository.delete(sub);
+            }
 
         } catch (Exception e) {
             log.warn("Push failed for endpoint {}: {}",
@@ -174,6 +200,30 @@ public class ProdPushNotificationService implements PushNotificationService {
                 log.info("Removing expired subscription for user {}", sub.getUserId());
                 subscriptionRepository.delete(sub);
             }
+        }
+    }
+
+    private static boolean isStaleStatusCode(int statusCode) {
+        return statusCode == 401 || statusCode == 403 || statusCode == 404 || statusCode == 410;
+    }
+
+    private static String extractResponseBody(HttpResponse response) {
+        if (response == null) {
+            return "";
+        }
+        HttpEntity entity = response.getEntity();
+        if (entity == null) {
+            return "";
+        }
+        try {
+            String body = EntityUtils.toString(entity, StandardCharsets.UTF_8);
+            if (body == null) {
+                return "";
+            }
+            String trimmed = body.replaceAll("\\s+", " ").trim();
+            return trimmed.length() > 300 ? trimmed.substring(0, 300) + "..." : trimmed;
+        } catch (Exception ignored) {
+            return "";
         }
     }
 
