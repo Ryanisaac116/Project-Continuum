@@ -2,6 +2,7 @@ package com.Project.Continuum.service;
 
 import com.Project.Continuum.entity.PushSubscription;
 import com.Project.Continuum.repository.PushSubscriptionRepository;
+import nl.martijndwars.webpush.Encoding;
 import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
 import org.apache.http.HttpResponse;
@@ -156,7 +157,7 @@ public class ProdPushNotificationService implements PushNotificationService {
                     sub.getAuth(),
                     payload.getBytes(StandardCharsets.UTF_8));
 
-            HttpResponse response = pushService.send(notification);
+            HttpResponse response = pushService.send(notification, Encoding.AES128GCM);
             int statusCode = response != null && response.getStatusLine() != null
                     ? response.getStatusLine().getStatusCode()
                     : -1;
@@ -194,7 +195,7 @@ public class ProdPushNotificationService implements PushNotificationService {
 
             String msg = e.getMessage() != null ? e.getMessage() : "";
             boolean staleSubscription =
-                    msg.contains("410") || msg.contains("404") || msg.contains("401") || msg.contains("403")
+                    msg.contains("410") || msg.contains("404")
                             || msg.toLowerCase().contains("gone") || msg.toLowerCase().contains("unsub");
             if (staleSubscription) {
                 log.info("Removing expired subscription for user {}", sub.getUserId());
@@ -204,7 +205,7 @@ public class ProdPushNotificationService implements PushNotificationService {
     }
 
     private static boolean isStaleStatusCode(int statusCode) {
-        return statusCode == 401 || statusCode == 403 || statusCode == 404 || statusCode == 410;
+        return statusCode == 404 || statusCode == 410;
     }
 
     private static String extractResponseBody(HttpResponse response) {
