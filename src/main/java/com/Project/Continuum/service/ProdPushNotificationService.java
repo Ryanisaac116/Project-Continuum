@@ -118,11 +118,6 @@ public class ProdPushNotificationService implements PushNotificationService {
     }
 
     @Override
-    public boolean hasSubscription(Long userId) {
-        return subscriptionRepository.existsByUserId(userId);
-    }
-
-    @Override
     public String getPublicKey() {
         return StringUtils.hasText(vapidPublicKey) ? vapidPublicKey : "";
     }

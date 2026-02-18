@@ -39,11 +39,6 @@ public class DevPushNotificationService implements PushNotificationService {
     }
 
     @Override
-    public boolean hasSubscription(Long userId) {
-        return false;
-    }
-
-    @Override
     public String getPublicKey() {
         return vapidPublicKey;
     }

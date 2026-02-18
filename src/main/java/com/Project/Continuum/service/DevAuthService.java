@@ -37,7 +37,6 @@ public class DevAuthService {
 
                     // Auto-promote User 1 to ADMIN for testing
                     if (userId == 1L) {
-                        System.out.println("DevAuthService: Force-promoting User 1 to ADMIN");
                         user.setRole(UserRole.ADMIN);
                     } else if (user.getRole() == null) {
                         user.setRole(UserRole.USER);
@@ -56,7 +55,6 @@ public class DevAuthService {
 
                     // Auto-promote User 1 to ADMIN for testing
                     if (userId == 1L) {
-                        System.out.println("DevAuthService: Creating new User 1 and forcing ADMIN role");
                         newUser.setRole(UserRole.ADMIN);
                     } else {
                         newUser.setRole(UserRole.USER);

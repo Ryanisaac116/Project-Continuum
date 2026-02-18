@@ -25,7 +25,17 @@ const Toast = ({ notification, onDismiss }) => {
                 case 'CALL_MISSED':
                     if (payload.callerId) {
                         navigate(`/chat/${payload.callerId}`);
+                    } else if (payload.receiverId) {
+                        navigate(`/chat/${payload.receiverId}`);
+                    } else {
+                        navigate('/friends?section=friends');
                     }
+                    break;
+                case 'FRIEND_REQUEST_RECEIVED':
+                    navigate('/friends?section=requests');
+                    break;
+                case 'FRIEND_REQUEST_ACCEPTED':
+                    navigate('/friends?section=friends');
                     break;
                 case 'MANUAL':
                     // Admin notifications — navigate to admin messages tab
@@ -63,7 +73,7 @@ const Toast = ({ notification, onDismiss }) => {
     return (
         <div
             onClick={handleClick}
-            className={`rounded-lg shadow-lg dark:shadow-black/30 border p-4 flex items-start gap-3 cursor-pointer transition animate-slide-in max-w-sm ${isAdmin
+            className={`rounded-lg shadow-lg dark:shadow-black/30 border p-3 sm:p-4 flex items-start gap-3 cursor-pointer transition animate-slide-in max-w-full sm:max-w-sm ${isAdmin
                 ? 'bg-purple-100 dark:bg-purple-900 border-purple-300 dark:border-purple-600 ring-2 ring-purple-500 shadow-purple-500/20'
                 : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
                 }`}
@@ -107,7 +117,7 @@ const ToastContainer = () => {
     if (toasts.length === 0) return null;
 
     return (
-        <div className="fixed top-4 right-4 z-50 space-y-2">
+        <div className="fixed top-3 sm:top-4 inset-x-3 sm:inset-x-auto sm:right-4 z-50 space-y-2">
             {toasts.map((toast) => (
                 <Toast
                     key={toast.toastId}

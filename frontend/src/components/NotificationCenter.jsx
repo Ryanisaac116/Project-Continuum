@@ -78,7 +78,19 @@ const NotificationCenter = () => {
                     break;
                 case 'CALL_INCOMING':
                 case 'CALL_MISSED':
-                    if (payload.callerId) navigate(`/chat/${payload.callerId}`);
+                    if (payload.callerId) {
+                        navigate(`/chat/${payload.callerId}`);
+                    } else if (payload.receiverId) {
+                        navigate(`/chat/${payload.receiverId}`);
+                    } else {
+                        navigate('/friends?section=friends');
+                    }
+                    break;
+                case 'FRIEND_REQUEST_RECEIVED':
+                    navigate('/friends?section=requests');
+                    break;
+                case 'FRIEND_REQUEST_ACCEPTED':
+                    navigate('/friends?section=friends');
                     break;
                 case 'ADMIN_SUPPORT':
                 case 'ADMIN_REPORT':
@@ -149,10 +161,10 @@ const NotificationCenter = () => {
                     {/* Panel */}
                     <div
                         ref={panelRef}
-                        className="fixed sm:absolute inset-x-4 sm:inset-x-auto sm:right-0 top-20 sm:top-auto sm:mt-4 sm:w-[400px] glass-panel rounded-2xl z-[100] max-h-[75vh] sm:max-h-[500px] flex flex-col overflow-hidden animate-fade-in-up origin-top-right border border-white/20 dark:border-slate-800"
+                        className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-[calc(env(safe-area-inset-top)+4.5rem)] sm:top-auto sm:mt-4 sm:w-[400px] max-w-[calc(100vw-1.5rem)] glass-panel rounded-2xl z-[100] max-h-[75vh] sm:max-h-[500px] flex flex-col overflow-hidden animate-fade-in-up origin-top-right border border-white/20 dark:border-slate-800"
                     >
                         {/* Header */}
-                        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
+                        <div className="px-4 sm:px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
                             <div className="flex items-center gap-2">
                                 <h3 className="font-bold text-slate-900 dark:text-white">Notifications</h3>
                                 {unreadCount > 0 && (
@@ -171,7 +183,7 @@ const NotificationCenter = () => {
                                             e.stopPropagation();
                                             markAllAsRead();
                                         }}
-                                        className="h-8 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-full"
+                                        className="h-8 text-[11px] sm:text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-full"
                                         title="Mark all as read"
                                     >
                                         <Check className="w-3.5 h-3.5 mr-1.5" /> Mark all

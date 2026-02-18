@@ -151,11 +151,6 @@ export function useWebRTC(callId, isCaller, remoteUserId) {
         const iAmCaller = isCallerRef.current;
         const myRole = iAmCaller ? 'CALLER' : 'RECEIVER';
 
-        // Log everything except ICE candidates to reduce noise
-        if (msg.type !== 'ICE_CANDIDATE') {
-            console.log(`[useWebRTC][${myRole}] Received signal: ${msg.type}`, msg);
-        }
-
         const payload = typeof msg.payload === 'string' ? JSON.parse(msg.payload) : msg.payload;
 
         try {

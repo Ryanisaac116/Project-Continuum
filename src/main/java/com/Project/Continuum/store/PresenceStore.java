@@ -54,7 +54,6 @@ public class PresenceStore {
             return existing;
         });
         int count = data.getConnectionCount();
-        log.debug("User {} connected, total connections: {}", userId, count);
         return count;
     }
 
@@ -73,7 +72,6 @@ public class PresenceStore {
         });
 
         int count = remaining.get();
-        log.debug("User {} disconnected, remaining connections: {}", userId, count);
         return count <= 0;
     }
 

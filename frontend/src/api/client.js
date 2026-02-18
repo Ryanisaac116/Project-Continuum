@@ -73,7 +73,6 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     const token = getToken();
-    console.log('[API] Request to:', config.url, 'Token exists:', !!token);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -85,7 +84,6 @@ apiClient.interceptors.request.use(
 // Response interceptor - handle auth errors
 apiClient.interceptors.response.use(
   (response) => {
-    console.log('[API] Response OK:', response.config.url);
     return response;
   },
   (error) => {
@@ -94,7 +92,6 @@ apiClient.interceptors.response.use(
       const errorCode = data?.error;
       const skipAuthRedirect = Boolean(error.config?.skipAuthRedirect);
 
-      console.log('[API] 401 error:', data);
       if (skipAuthRedirect) {
         return Promise.reject(error);
       }

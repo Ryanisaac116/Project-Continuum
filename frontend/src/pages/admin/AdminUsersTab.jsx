@@ -110,16 +110,16 @@ const AdminUsersTab = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">User Management</h2>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
+                <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 text-right">
                     {users.length} users on this page
                 </span>
             </div>
 
             <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full">
+                    <table className="w-full min-w-[760px]">
                         <thead>
                             <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-b border-gray-200 dark:border-gray-700">
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -179,7 +179,7 @@ const AdminUsersTab = () => {
                                             <StatusBadge active={user.active} />
                                         </td>
                                         <td className="px-4 py-4 text-left">
-                                            <div className="flex items-center justify-start gap-1">
+                                            <div className="flex items-center justify-start gap-1 flex-wrap">
                                                 {user.active && user.role !== 'ADMIN' && (
                                                     <Button
                                                         variant="ghost"
@@ -189,7 +189,9 @@ const AdminUsersTab = () => {
                                                         className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                                                     >
                                                         <UserX className="w-4 h-4 mr-1.5" />
-                                                        {actionLoading === user.id ? 'Processing...' : 'Deactivate'}
+                                                        <span className="hidden md:inline">
+                                                            {actionLoading === user.id ? 'Processing...' : 'Deactivate'}
+                                                        </span>
                                                     </Button>
                                                 )}
                                                 {!user.active && (
@@ -213,7 +215,9 @@ const AdminUsersTab = () => {
                                                         className="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
                                                     >
                                                         <UserCheck className="w-4 h-4 mr-1.5" />
-                                                        {actionLoading === user.id ? 'Processing...' : 'Reactivate'}
+                                                        <span className="hidden md:inline">
+                                                            {actionLoading === user.id ? 'Processing...' : 'Reactivate'}
+                                                        </span>
                                                     </Button>
                                                 )}
                                                 <Button
@@ -223,7 +227,7 @@ const AdminUsersTab = () => {
                                                     className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
                                                 >
                                                     <Activity className="w-4 h-4 mr-1.5" />
-                                                    Activity
+                                                    <span className="hidden md:inline">Activity</span>
                                                 </Button>
                                                 <Button
                                                     variant="ghost"
@@ -232,7 +236,7 @@ const AdminUsersTab = () => {
                                                     className="text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
                                                 >
                                                     <MessageSquare className="w-4 h-4 mr-1.5" />
-                                                    Message
+                                                    <span className="hidden md:inline">Message</span>
                                                 </Button>
                                             </div>
                                         </td>
@@ -244,7 +248,7 @@ const AdminUsersTab = () => {
                 </div>
 
                 {totalPages > 1 && (
-                    <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50 dark:bg-gray-800/50">
+                    <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 gap-2">
                         <Button
                             variant="outline"
                             size="sm"
@@ -252,9 +256,9 @@ const AdminUsersTab = () => {
                             disabled={page === 0}
                         >
                             <ChevronLeft className="w-4 h-4 mr-1" />
-                            Previous
+                            <span className="hidden sm:inline">Previous</span>
                         </Button>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                        <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 text-center">
                             Page {page + 1} of {totalPages}
                         </span>
                         <Button
@@ -263,7 +267,7 @@ const AdminUsersTab = () => {
                             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                             disabled={page >= totalPages - 1}
                         >
-                            Next
+                            <span className="hidden sm:inline">Next</span>
                             <ChevronRight className="w-4 h-4 ml-1" />
                         </Button>
                     </div>

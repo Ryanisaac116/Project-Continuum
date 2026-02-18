@@ -4,6 +4,9 @@ import com.Project.Continuum.dto.notification.NotificationResponse;
 import com.Project.Continuum.entity.Notification;
 import com.Project.Continuum.enums.NotificationType;
 import com.Project.Continuum.enums.PresenceStatus;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.Project.Continuum.exception.AccessDeniedException;
 import com.Project.Continuum.exception.ResourceNotFoundException;
 import com.Project.Continuum.repository.NotificationRepository;
@@ -16,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -35,7 +39,9 @@ public class NotificationService {
     private final PresenceStore presenceStore;
     private final SimpMessageSendingOperations messagingTemplate;
     private final PushNotificationService pushService;
+    private final ObjectMapper objectMapper;
     private final Clock clock;
+    private static final Duration REALTIME_ACTIVITY_WINDOW = Duration.ofMinutes(2);
 
     // Notification types that should trigger push when user is offline
     private static final List<NotificationType> PUSH_ENABLED_TYPES = List.of(
@@ -51,11 +57,13 @@ public class NotificationService {
             PresenceStore presenceStore,
             SimpMessageSendingOperations messagingTemplate,
             PushNotificationService pushService,
+            ObjectMapper objectMapper,
             Clock clock) {
         this.notificationRepository = notificationRepository;
         this.presenceStore = presenceStore;
         this.messagingTemplate = messagingTemplate;
         this.pushService = pushService;
+        this.objectMapper = objectMapper;
         this.clock = clock;
     }
 
@@ -89,11 +97,7 @@ public class NotificationService {
 
         notificationRepository.save(notification);
 
-        // Consider user online only when there is an active socket connection.
-        // Presence status alone can be stale for a short period in prod.
-        PresenceStatus status = presenceStore.getStatus(userId);
-        int connectionCount = presenceStore.getConnectionCount(userId);
-        boolean hasLiveSocket = connectionCount > 0 && status != PresenceStatus.OFFLINE;
+        boolean hasLiveSocket = isRealtimeReachable(userId);
 
         if (hasLiveSocket) {
             NotificationResponse response = new NotificationResponse(notification);
@@ -106,12 +110,99 @@ public class NotificationService {
 
         // User is offline/unreachable - send push notification for important types
         if (PUSH_ENABLED_TYPES.contains(type)) {
-            pushService.sendToUser(userId, title, message, payload);
-            log.debug("Push attempted for user {} type {} (status={}, connections={})",
-                    userId, type, status, connectionCount);
+            pushService.sendToUser(userId, title, message, buildPushData(userId, type, payload));
         }
 
         return notification;
+    }
+
+    private boolean isRealtimeReachable(Long userId) {
+        PresenceStatus status = presenceStore.getStatus(userId);
+        int connectionCount = presenceStore.getConnectionCount(userId);
+
+        if (connectionCount <= 0 || status == PresenceStatus.OFFLINE) {
+            return false;
+        }
+
+        Instant lastSeen = presenceStore.getLastSeen(userId);
+        if (lastSeen == null) {
+            return true;
+        }
+
+        Instant cutoff = Instant.now(clock).minus(REALTIME_ACTIVITY_WINDOW);
+        return !lastSeen.isBefore(cutoff);
+    }
+
+    private String buildPushData(Long recipientUserId, NotificationType type, String payload) {
+        ObjectNode dataNode = objectMapper.createObjectNode();
+
+        if (payload != null && !payload.isBlank()) {
+            try {
+                JsonNode parsed = objectMapper.readTree(payload);
+                if (parsed != null && parsed.isObject()) {
+                    dataNode.setAll((ObjectNode) parsed);
+                }
+            } catch (Exception ignored) {
+                // Keep push delivery resilient even if payload is malformed JSON.
+            }
+        }
+
+        dataNode.put("type", type.name());
+        dataNode.put("url", resolveNotificationUrl(recipientUserId, type, dataNode));
+        return dataNode.toString();
+    }
+
+    private String resolveNotificationUrl(Long recipientUserId, NotificationType type, ObjectNode dataNode) {
+        return switch (type) {
+            case CHAT_MESSAGE -> {
+                Long senderId = getLong(dataNode, "senderId");
+                yield senderId != null ? "/chat/" + senderId : "/app";
+            }
+            case CALL_INCOMING, CALL_MISSED -> {
+                Long counterpartId = firstNonNull(
+                        getLong(dataNode, "callerId"),
+                        getLong(dataNode, "receiverId"),
+                        getLong(dataNode, "senderId"),
+                        getLong(dataNode, "friendId"),
+                        getLong(dataNode, "requesterId"));
+                if (counterpartId != null && !counterpartId.equals(recipientUserId)) {
+                    yield "/chat/" + counterpartId;
+                }
+                yield "/friends?section=friends";
+            }
+            case FRIEND_REQUEST_RECEIVED -> "/friends?section=requests";
+            case FRIEND_REQUEST_ACCEPTED -> "/friends?section=friends";
+            case MATCH_FOUND -> "/exchanges";
+            case SYSTEM -> "/app";
+        };
+    }
+
+    private static Long getLong(ObjectNode dataNode, String field) {
+        JsonNode node = dataNode.get(field);
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isIntegralNumber()) {
+            return node.longValue();
+        }
+        if (node.isTextual()) {
+            try {
+                return Long.parseLong(node.textValue());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    @SafeVarargs
+    private static <T> T firstNonNull(T... values) {
+        for (T value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     /**

@@ -129,7 +129,6 @@ const setupAdminSubscription = () => {
     if (!client || !client.connected || !isUserAdmin || adminSubscription) return;
 
     try {
-        console.log('[ChatSocket] Subscribing to Admin Messages');
         adminSubscription = client.subscribe('/topic/admin/messages', (message) => {
             const data = JSON.parse(message.body);
             emit('adminMessage', data);
@@ -261,7 +260,6 @@ export const connectChatSocket = (token, onMessage, onConnected, onError, isAdmi
 
     // Check for admin upgrade if already connected
     if (connected && isAdmin && !isUserAdmin) {
-        console.log('[ChatSocket] Upgrading to Admin subscriptions');
         isUserAdmin = isAdmin;
         setupAdminSubscription();
     }

@@ -153,9 +153,6 @@ export const RealTimeProvider = ({ children }) => {
             friendIdsRef.current.add(targetId);
         });
 
-        if (newIds.length > 0) {
-            console.log('[RealTime] Subscribed to', newIds.length, 'users presence');
-        }
     }, [friends, recentlyMet]);
 
     // ==================== ACTIONS ====================
@@ -213,7 +210,6 @@ export const RealTimeProvider = ({ children }) => {
     // ==================== EVENT HANDLERS ====================
 
     const handleFriendEvent = useCallback((event) => {
-        console.log('[RealTime] Friend event:', event);
         bumpEventVersion('friend');
 
         switch (event.event || event.type) {
@@ -265,7 +261,6 @@ export const RealTimeProvider = ({ children }) => {
     }, [bumpEventVersion]);
 
     const handleSessionEvent = useCallback((event) => {
-        console.log('[RealTime] Session event:', event);
         bumpEventVersion('session');
         // Refresh recently met on any session activity that implies interaction
         if (['SESSION_STARTED', 'SESSION_ENDED', 'MATCH_FOUND'].includes(event.type) || ['SESSION_STARTED', 'SESSION_ENDED', 'MATCH_FOUND'].includes(event.event)) {
@@ -274,7 +269,6 @@ export const RealTimeProvider = ({ children }) => {
     }, [bumpEventVersion, refreshRecentlyMet]);
 
     const handleMatchEvent = useCallback((event) => {
-        console.log('[RealTime] Match event:', event);
         bumpEventVersion('match');
         if (event.type === 'MATCH_FOUND') {
             refreshRecentlyMet();
@@ -292,13 +286,11 @@ export const RealTimeProvider = ({ children }) => {
         isSettingUpRef.current = true;
 
         const isAdmin = user?.role === 'ADMIN';
-        console.log('[RealTime] Setting up WebSocket. User Role:', user?.role, 'IsAdmin:', isAdmin);
 
         connectChatSocket(
             token,
             () => { }, // message handler
             () => {
-                console.log('[RealTime] WebSocket connected');
                 setConnectionError(null);
                 isSettingUpRef.current = false;
                 // Presence subscriptions handled by connection listener
@@ -325,7 +317,6 @@ export const RealTimeProvider = ({ children }) => {
     // Listen to WebSocket connection state changes
     useEffect(() => {
         const unsub = onConnectionChange((connected) => {
-            console.log('[RealTime] Connection state:', connected);
             const wasConnected = connectionWasUpRef.current;
             connectionWasUpRef.current = connected;
             setIsConnected(connected);
@@ -392,7 +383,6 @@ export const RealTimeProvider = ({ children }) => {
         if (isConnected && user?.role === 'ADMIN') {
             const token = getToken();
             if (token) {
-                console.log('[RealTime] Upgrading to Admin subscriptions (role detected as ADMIN)');
                 connectChatSocket(token, () => { }, () => { }, () => { }, true);
             }
         }

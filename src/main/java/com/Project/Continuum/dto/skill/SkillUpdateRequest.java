@@ -1,12 +1,11 @@
 package com.Project.Continuum.dto.skill;
 
-
-public class SkillCreateRequest {
-
+public class SkillUpdateRequest {
     private String name;
     private String category;
 
-    public SkillCreateRequest() {}
+    public SkillUpdateRequest() {
+    }
 
     public String getName() {
         return name;

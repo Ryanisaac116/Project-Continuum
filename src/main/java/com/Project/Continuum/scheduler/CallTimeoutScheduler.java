@@ -242,7 +242,6 @@ public class CallTimeoutScheduler {
                     payload);
         } catch (Exception e) {
             // User might be disconnected - that's expected for stale calls
-            log.debug("Could not send call end to users (expected for stale calls): {}", e.getMessage());
         }
     }
 

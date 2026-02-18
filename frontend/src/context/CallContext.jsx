@@ -18,8 +18,6 @@ export const CallProvider = ({ children }) => {
 
     // Handle incoming socket events
     const handleCallEvent = useCallback((data) => {
-        console.log('[CallContext] Event:', data);
-
         switch (data.event) {
             case 'CALL_INITIATE':
                 setCallState({
@@ -81,7 +79,6 @@ export const CallProvider = ({ children }) => {
         try {
             const res = await apiClient.get('/calls/active');
             if (res.data) {
-                console.log('[CallContext] Restoring active call:', res.data);
                 const { isCaller, remoteUserId, remoteUserName, status, callId, exchangeSessionId } = res.data;
                 const isIncoming = !isCaller && status === 'RINGING';
 

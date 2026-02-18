@@ -34,7 +34,6 @@ const AdminMessagesTab = () => {
     // Listen for real-time admin messages
     useEffect(() => {
         const handleNewMessage = (msg) => {
-            console.log('[AdminMessagesTab] Received real-time message:', msg);
             setMessages(prev => [msg, ...prev]);
             addToast('New Support Message', `${msg.subject} (${msg.sender?.name})`, 'INFO');
         };
@@ -47,7 +46,7 @@ const AdminMessagesTab = () => {
         try {
             await supportApi.resolveMessage(id);
             fetchMessages(); // Refresh
-        } catch (err) {
+        } catch {
             await dialog.alert('Error', 'Failed to resolve message');
         }
     };
@@ -79,7 +78,7 @@ const AdminMessagesTab = () => {
 
             <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full">
+                    <table className="w-full min-w-[760px]">
                         <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-b border-gray-200 dark:border-gray-700">
                             <tr>
                                 <th className="hidden md:table-cell px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
@@ -145,7 +144,7 @@ const AdminMessagesTab = () => {
                 </div>
 
                 {/* Pagination */}
-                <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
+                <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 gap-2">
                     <Button
                         variant="outline"
                         size="sm"
@@ -153,16 +152,16 @@ const AdminMessagesTab = () => {
                         onClick={() => setPage(p => p - 1)}
                     >
                         <ChevronLeft className="w-4 h-4 mr-1" />
-                        Previous
+                        <span className="hidden sm:inline">Previous</span>
                     </Button>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Page {page + 1} of {totalPages || 1}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 text-center">Page {page + 1} of {totalPages || 1}</span>
                     <Button
                         variant="outline"
                         size="sm"
                         disabled={page >= totalPages - 1}
                         onClick={() => setPage(p => p + 1)}
                     >
-                        Next
+                        <span className="hidden sm:inline">Next</span>
                         <ChevronRight className="w-4 h-4 ml-1" />
                     </Button>
                 </div>

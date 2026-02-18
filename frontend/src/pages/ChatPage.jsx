@@ -221,11 +221,9 @@ const ChatPage = () => {
                 );
 
                 if (!friendData) {
-                    console.log('Friend not found in list, attempting fallback fetch for ID:', friendId);
                     // Fallback: Try to fetch user directly (e.g. for Admins messaging non-friends)
                     try {
                         const userRes = await apiClient.get(`/users/${friendId}`);
-                        console.log('Fallback fetch success:', userRes.data);
                         // Map UserResponse to friend format expected by ChatPage
                         friendData = {
                             friendUserId: userRes.data.id,
@@ -251,8 +249,8 @@ const ChatPage = () => {
                         presenceStatus: presenceRes.data.status,
                         lastSeenAt: presenceRes.data.lastSeenAt
                     }));
-                } catch (err) {
-                    console.log('Could not fetch presence:', err);
+                } catch {
+                    // Presence fetch failures are non-blocking for chat load.
                 }
 
                 const historyRes = await chatApi.getChatHistory(friendId);
@@ -551,7 +549,7 @@ const ChatPage = () => {
 
     if (loading) {
         return (
-            <div className="h-screen flex items-center justify-center bg-white dark:bg-black transition-colors">
+            <div className="h-dvh flex items-center justify-center bg-white dark:bg-black transition-colors">
                 <div className="text-gray-500 dark:text-slate-500">Loading chat...</div>
             </div>
         );
@@ -559,7 +557,7 @@ const ChatPage = () => {
 
     if (error) {
         return (
-            <div className="h-screen flex flex-col items-center justify-center bg-white dark:bg-black p-4 transition-colors">
+            <div className="h-dvh flex flex-col items-center justify-center bg-white dark:bg-black p-4 transition-colors">
                 <div className="text-red-500 dark:text-red-400 mb-4 text-center">{error}</div>
                 <button
                     onClick={() => navigate('/friends')}
@@ -574,7 +572,10 @@ const ChatPage = () => {
     const isSelectionMode = selectedIds.size > 0;
 
     return (
-        <div className="flex flex-col h-dvh min-h-0 bg-gray-50 dark:bg-slate-950 transition-colors duration-300">
+        <div
+            className="flex flex-col h-dvh min-h-0 bg-gray-50 dark:bg-slate-950 transition-colors duration-300"
+            style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        >
 
             {/* Copy feedback toast - positioned beside message */}
             {copyFeedback && (
@@ -669,7 +670,7 @@ const ChatPage = () => {
                     </div>
                 ) : (
                     // Normal Header
-                    <div className="px-3 py-3 flex items-center gap-3">
+                    <div className="px-2.5 sm:px-3 py-2.5 sm:py-3 flex items-center gap-2.5 sm:gap-3">
                         <button
                             onClick={() => navigate('/friends')}
                             className="p-2 -ml-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 active:bg-gray-200 dark:active:bg-white/20"
@@ -892,7 +893,7 @@ const ChatPage = () => {
                                                 </div>
                                             )}
                                             <div
-                                                className={`max-w-[80%] px-4 py-2 rounded-2xl select-none transition-all ${isSelected ? 'ring-2 ring-blue-500' : ''
+                                                className={`max-w-[85%] sm:max-w-[80%] px-4 py-2 rounded-2xl select-none transition-all ${isSelected ? 'ring-2 ring-blue-500' : ''
                                                     } ${isDeletedGlobally
                                                         ? 'bg-gray-100 dark:bg-slate-800/50 text-gray-500 dark:text-slate-500 italic border border-gray-200 dark:border-slate-700/50'
                                                         : isMe
@@ -994,7 +995,10 @@ const ChatPage = () => {
             </div>
 
             {/* Bottom Section: Reply Bar + Input - pushed to bottom via mt-auto */}
-            <div className="bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 transition-colors">
+            <div
+                className="bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 transition-colors"
+                style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            >
                 {/* Reply Preview */}
                 {replyingTo && (
                     <div className="px-3 py-1.5 bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center gap-2">
@@ -1021,7 +1025,7 @@ const ChatPage = () => {
                             value={newMessage}
                             onChange={(e) => setNewMessage(e.target.value)}
                             placeholder="Type a message..."
-                            className="flex-1 px-4 py-3 bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-white rounded-full outline-none focus:ring-2 focus:ring-blue-600 border border-gray-200 dark:border-slate-700 placeholder:text-gray-500 dark:placeholder:text-slate-500 text-sm transition-colors"
+                            className="flex-1 px-4 py-3 bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-white rounded-full outline-none focus:ring-2 focus:ring-blue-600 border border-gray-200 dark:border-slate-700 placeholder:text-gray-500 dark:placeholder:text-slate-500 text-base sm:text-sm transition-colors"
                             disabled={!socketConnected}
                         />
                         <button

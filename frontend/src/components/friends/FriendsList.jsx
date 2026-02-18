@@ -48,11 +48,11 @@ const FriendsList = ({ friends }) => {
                     return (
                         <li
                             key={friend.friendUserId}
-                            className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-muted/50 transition-colors"
+                            className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 hover:bg-muted/50 transition-colors"
                         >
                             {/* User Info - Tap to chat on mobile */}
                             <div
-                                className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer group"
+                                className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0 cursor-pointer group w-full"
                                 onClick={() => navigate(`/chat/${friend.friendUserId}`)}
                             >
                                 {/* Avatar */}
@@ -61,7 +61,7 @@ const FriendsList = ({ friends }) => {
                                 </div>
 
                                 <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2 font-semibold text-lg truncate group-hover:text-primary transition-colors">
+                                    <div className="flex items-center gap-2 font-semibold text-base sm:text-lg truncate group-hover:text-primary transition-colors">
                                         <span>{friend.name}</span>
                                         {friend.role === 'ADMIN' && (
                                             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-red-500 to-purple-600 text-white shadow-sm shrink-0">
@@ -79,7 +79,7 @@ const FriendsList = ({ friends }) => {
                             </div>
 
                             {/* Action buttons - Always visible */}
-                            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 w-full sm:w-auto justify-end">
                                 {/* Call Button - Only for ONLINE users */}
                                 <Button
                                     size="sm"
@@ -96,7 +96,7 @@ const FriendsList = ({ friends }) => {
                                     }
                                 >
                                     <span>📞</span>
-                                    <span className="hidden sm:inline">Call</span>
+                                    <span className="hidden md:inline">Call</span>
                                 </Button>
                                 <Button
                                     size="sm"
@@ -108,7 +108,7 @@ const FriendsList = ({ friends }) => {
                                     className="gap-2"
                                 >
                                     <span className="sm:hidden">💬</span>
-                                    <span className="hidden sm:inline">Chat</span>
+                                    <span className="hidden md:inline">Chat</span>
                                 </Button>
                                 <Button
                                     size="icon"

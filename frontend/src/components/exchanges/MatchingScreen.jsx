@@ -63,8 +63,6 @@ const MatchingScreen = () => {
     connectMatchingSocket(
       token,
       (event) => {
-        console.log('MATCH EVENT:', event);
-
         if (event.type === 'MATCH_FOUND') {
           navigatedToSessionRef.current = true;
           clearTimeout(timeoutRef.current);
@@ -88,7 +86,6 @@ const MatchingScreen = () => {
         connectedRef.current = true;
         clearTimeout(timeoutRef.current);
         setStatus('SEARCHING');
-        console.log('Joining matching with payload:', requestPayload);
         joinMatching(requestPayload);
       },
       (err) => {
@@ -130,17 +127,17 @@ const MatchingScreen = () => {
       <div className="flex flex-col items-center justify-center gap-6 py-24 text-center">
         <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center"><AlertTriangle className="w-8 h-8 text-red-500" /></div>
         <p className="text-lg text-red-600 dark:text-red-500 font-medium transition-colors">{error}</p>
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full max-w-xs sm:max-w-none justify-center">
           <Button
             onClick={handleRetry}
-            className="px-6 py-2 shadow-lg"
+            className="px-6 py-2 shadow-lg w-full sm:w-auto"
           >
             Retry
           </Button>
           <Button
             variant="ghost"
             onClick={handleCancel}
-            className="px-6 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+            className="px-6 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors w-full sm:w-auto"
           >
             Cancel
           </Button>

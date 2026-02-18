@@ -30,9 +30,9 @@ const FriendRequestsList = ({ requests, onAccept, onReject, pendingActions = {} 
                 const isAnyPending = isAccepting || isRejecting;
 
                 return (
-                    <li key={request.requesterId} className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-muted/50 transition-colors">
+                    <li key={request.requesterId} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 hover:bg-muted/50 transition-colors">
                         {/* User Info */}
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
                             {/* Avatar placeholder */}
                             <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-secondary flex items-center justify-center font-bold text-secondary-foreground text-sm">
                                 {request.requesterName?.charAt(0)?.toUpperCase() || '?'}
@@ -50,7 +50,7 @@ const FriendRequestsList = ({ requests, onAccept, onReject, pendingActions = {} 
                         </div>
 
                         {/* Presence + Actions */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
                             <div className="hidden sm:block">
                                 <Badge variant={request.presence === 'ONLINE' ? 'default' : 'secondary'} className={cn(
                                     request.presence === 'ONLINE' && "bg-green-500 hover:bg-green-600"

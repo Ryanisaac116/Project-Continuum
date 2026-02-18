@@ -107,7 +107,7 @@ const ExchangesDashboard = () => {
         <Button
           onClick={handleStartExchange}
           disabled={!exchangeState.canStart}
-          className={`h-12 px-8 rounded-full font-semibold shadow-lg transition-all duration-300 ${exchangeState.canStart
+          className={`h-12 px-8 w-full sm:w-auto rounded-full font-semibold shadow-lg transition-all duration-300 ${exchangeState.canStart
             ? 'bg-gradient-brand hover:shadow-indigo-500/25 hover:scale-105 active:scale-95 text-white border-0'
             : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none'
             }`}

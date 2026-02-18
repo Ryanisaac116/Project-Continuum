@@ -4,14 +4,14 @@ import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { Users, Activity, ArrowLeftRight, MessageSquare, Phone, BookOpen } from 'lucide-react';
 
 const StatCard = ({ label, value, icon: Icon, gradient }) => (
-    <div className="relative overflow-hidden bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 dark:border-gray-800 shadow-xl shadow-gray-200/50 dark:shadow-black/50 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="relative overflow-hidden bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-white/20 dark:border-gray-800 shadow-xl shadow-gray-200/50 dark:shadow-black/50 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group">
         <div className={`absolute -top-6 -right-6 w-32 h-32 ${gradient} opacity-20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700`} />
         <div className="relative">
             <div className={`w-12 h-12 ${gradient} rounded-xl flex items-center justify-center text-white mb-4 shadow-lg shadow-gray-300/20 dark:shadow-none group-hover:shadow-xl transition-shadow`}>
                 <Icon className="w-5 h-5" />
             </div>
             <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">{label}</p>
-            <p className="text-3xl font-black text-gray-900 dark:text-white mt-1 tracking-tight">
+            <p className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mt-1 tracking-tight">
                 {typeof value === 'string' ? value : (value?.toLocaleString() ?? '--')}
             </p>
         </div>
@@ -73,7 +73,7 @@ const AdminDashboardTab = () => {
         <div className="space-y-8">
             <div>
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Platform Overview</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     <StatCard
                         label="Total Users"
                         value={stats?.totalUsers}

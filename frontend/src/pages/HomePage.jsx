@@ -88,7 +88,7 @@ const HomePage = () => {
             <div className="space-y-8 animate-fade-in">
                 {/* Header Section */}
                 <div className="flex flex-col gap-2">
-                    <h1 className="text-3xl font-bold tracking-tight md:text-4xl bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight md:text-4xl bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300">
                         {greeting.text}, {user?.name} {greeting.icon}
                         {isAdmin && (
                             <Badge variant="destructive" className="ml-2 align-middle">
@@ -96,7 +96,7 @@ const HomePage = () => {
                             </Badge>
                         )}
                     </h1>
-                    <p className="text-lg text-muted-foreground">
+                    <p className="text-base sm:text-lg text-muted-foreground">
                         Welcome back to your skills ecosystem. Let's make progress today.
                     </p>
                 </div>

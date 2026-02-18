@@ -25,8 +25,6 @@ export function useTabPresence(shouldRemainOnline = false) {
 
             // Skip if same status or request pending
             if (lastStatusRef.current === newStatus || pendingRef.current) return;
-
-            console.log('[useTabPresence] Updating presence to:', newStatus, '(Override:', shouldRemainOnline, ')');
             pendingRef.current = true;
             lastStatusRef.current = newStatus;
 
@@ -36,7 +34,6 @@ export function useTabPresence(shouldRemainOnline = false) {
                 } else {
                     await presenceApi.markOffline();
                 }
-                console.log('[useTabPresence] API success, updating local user state...');
                 updateUserPresence?.(newStatus);
             } catch (err) {
                 console.error('[Presence] Failed:', err);
@@ -50,6 +47,14 @@ export function useTabPresence(shouldRemainOnline = false) {
             updatePresence(document.visibilityState === 'visible');
         };
 
+        const handleFocus = () => {
+            updatePresence(true);
+        };
+
+        const handlePageHide = () => {
+            updatePresence(false);
+        };
+
         // Initial presence
         updatePresence(document.visibilityState === 'visible');
 
@@ -58,13 +63,19 @@ export function useTabPresence(shouldRemainOnline = false) {
             if (document.visibilityState === 'visible' || shouldRemainOnline) {
                 presenceApi.heartbeat().catch(() => { });
             }
-        }, 180000);
+        }, 60000);
 
         document.addEventListener('visibilitychange', handleVisibility);
+        window.addEventListener('focus', handleFocus);
+        window.addEventListener('pageshow', handleFocus);
+        window.addEventListener('pagehide', handlePageHide);
 
         return () => {
             clearInterval(heartbeatInterval);
             document.removeEventListener('visibilitychange', handleVisibility);
+            window.removeEventListener('focus', handleFocus);
+            window.removeEventListener('pageshow', handleFocus);
+            window.removeEventListener('pagehide', handlePageHide);
             mountedRef.current = false;
         };
     }, [user?.id, updateUserPresence, shouldRemainOnline]); // Only run when user ID or override changes

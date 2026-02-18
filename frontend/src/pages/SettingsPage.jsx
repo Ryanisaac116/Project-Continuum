@@ -16,11 +16,9 @@ const SettingsPage = () => {
         isSubscribed,
         permission,
         error: pushError,
-        testSending,
         loading: pushLoading,
         enablePush,
-        disablePush,
-        sendTestPush,
+        disablePush
     } = usePushNotifications();
 
     const [accountAction, setAccountAction] = useState(null);
@@ -28,6 +26,11 @@ const SettingsPage = () => {
     const dialog = useDialog();
 
     const isBusy = accountAction !== null;
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    const platform = typeof navigator !== 'undefined' ? navigator.platform : '';
+    const maxTouchPoints = typeof navigator !== 'undefined' ? navigator.maxTouchPoints || 0 : 0;
+    const isIos = /iPhone|iPad|iPod/i.test(userAgent) || (platform === 'MacIntel' && maxTouchPoints > 1);
+    const isAndroid = /Android/i.test(userAgent);
 
     const handlePushToggle = async () => {
         if (isSubscribed) {
@@ -110,7 +113,7 @@ const SettingsPage = () => {
                             <CardTitle>Notifications</CardTitle>
                             <CardDescription>Manage how you receive updates when you're away</CardDescription>
                         </CardHeader>
-                        <CardContent className="flex items-center justify-between">
+                        <CardContent className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div>
                                 <div className="font-medium">Push Notifications</div>
                                 <div className="text-sm text-muted-foreground mt-1">
@@ -124,27 +127,46 @@ const SettingsPage = () => {
                                         {pushError}
                                     </div>
                                 )}
+                                {(!isSubscribed || permission !== 'granted' || pushError) && (
+                                    <div className="mt-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-3 text-xs text-muted-foreground space-y-2">
+                                        <div className="font-semibold text-foreground">Mobile push checklist</div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            <div>
+                                                <div className="font-medium text-foreground mb-1">
+                                                    iOS (Safari){isIos ? ' - detected' : ''}
+                                                </div>
+                                                <ol className="list-decimal list-inside space-y-1">
+                                                    <li>Use Safari and add Continuum to Home Screen.</li>
+                                                    <li>Open the installed Home Screen app (not Safari tab).</li>
+                                                    <li>Tap Enable in Settings and accept the prompt.</li>
+                                                    <li>In iPhone Settings, allow notifications for this app.</li>
+                                                </ol>
+                                            </div>
+                                            <div>
+                                                <div className="font-medium text-foreground mb-1">
+                                                    Android (Chrome/Edge/Firefox){isAndroid ? ' - detected' : ''}
+                                                </div>
+                                                <ol className="list-decimal list-inside space-y-1">
+                                                    <li>Open Continuum in a full browser, not an in-app browser.</li>
+                                                    <li>Use HTTPS URL and tap Enable in Settings.</li>
+                                                    <li>Allow notifications in Site settings for this domain.</li>
+                                                    <li>If blocked, reset notification permission and retry.</li>
+                                                </ol>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <Button
                                 variant={isSubscribed ? 'outline' : 'default'}
                                 onClick={handlePushToggle}
                                 disabled={pushLoading || !isSupported || permission === 'denied'}
+                                className="w-full sm:w-auto"
                             >
                                 {pushLoading ? 'Loading...' : isSubscribed ? 'Disable' : 'Enable'}
                             </Button>
                         </CardContent>
-                        {isSubscribed && (
-                            <CardContent className="pt-0">
-                                <Button
-                                    variant="secondary"
-                                    onClick={sendTestPush}
-                                    disabled={testSending || pushLoading}
-                                >
-                                    {testSending ? 'Sending test...' : 'Send Test Push'}
-                                </Button>
-                            </CardContent>
-                        )}
                     </Card>
 
                     <Card>
@@ -152,7 +174,7 @@ const SettingsPage = () => {
                             <CardTitle>Appearance</CardTitle>
                             <CardDescription>Customize your visual experience</CardDescription>
                         </CardHeader>
-                        <CardContent className="flex items-center justify-between">
+                        <CardContent className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div>
                                 <div className="font-medium">Theme</div>
                                 <div className="text-sm text-muted-foreground mt-1">
@@ -170,7 +192,7 @@ const SettingsPage = () => {
                         </CardHeader>
 
                         <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between gap-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                                 <div>
                                     <div className="font-medium">Session</div>
                                     <div className="text-sm text-muted-foreground mt-1">
@@ -188,7 +210,7 @@ const SettingsPage = () => {
 
                             {user?.role !== 'ADMIN' && (
                                 <>
-                                    <div className="flex items-center justify-between gap-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                                         <div>
                                             <div className="font-medium text-amber-600 dark:text-amber-500">Deactivate Account</div>
                                             <div className="text-sm text-muted-foreground mt-1">
@@ -204,7 +226,7 @@ const SettingsPage = () => {
                                         </Button>
                                     </div>
 
-                                    <div className="flex items-center justify-between gap-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                                         <div>
                                             <div className="font-medium text-destructive">Delete Account</div>
                                             <div className="text-sm text-muted-foreground mt-1">

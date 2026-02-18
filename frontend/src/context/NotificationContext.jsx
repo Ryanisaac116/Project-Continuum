@@ -64,10 +64,7 @@ export const NotificationProvider = ({ children }) => {
 
     // Handle incoming WebSocket notification
     const handleNotification = useCallback((notification) => {
-        console.log('[NotificationContext] Received:', notification);
-
         if (notification.type === 'NOTIFICATIONS_CLEARED') {
-            console.log('[NotificationContext] Notification list cleared by server event');
             setNotifications([]);
             setUnreadCount(0);
             return;
@@ -105,7 +102,6 @@ export const NotificationProvider = ({ children }) => {
 
                 if (currentChatId && String(currentChatId) === String(payload.senderId)) {
                     shouldShowToast = false;
-                    console.log('[NotificationContext] Suppressing chat notification (already in chat)');
                 }
             } catch (e) {
                 console.error('Error parsing payload for suppression check:', e);

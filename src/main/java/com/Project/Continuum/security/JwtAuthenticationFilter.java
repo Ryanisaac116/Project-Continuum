@@ -92,8 +92,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             // Use DB role so role updates take effect immediately.
             String role = user.getRole() != null ? user.getRole().name() : "USER";
-            System.out.println(
-                    "JwtFilter: User " + userId + " accessing " + request.getRequestURI() + " with Role: " + role);
 
             var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
 

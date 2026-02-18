@@ -1,6 +1,31 @@
 import { useState, useEffect } from 'react';
 import { pushApi } from '../api/push';
 
+function isIosDevice() {
+    if (typeof navigator === 'undefined') return false;
+    const ua = navigator.userAgent || '';
+    const platform = navigator.platform || '';
+    const maxTouchPoints = navigator.maxTouchPoints || 0;
+    const iPadOs = platform === 'MacIntel' && maxTouchPoints > 1;
+    return /iPhone|iPad|iPod/i.test(ua) || iPadOs;
+}
+
+function isStandaloneMode() {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator?.standalone === true;
+}
+
+function isAndroidDevice() {
+    if (typeof navigator === 'undefined') return false;
+    return /Android/i.test(navigator.userAgent || '');
+}
+
+function isLikelyInAppBrowser() {
+    if (typeof navigator === 'undefined') return false;
+    const ua = navigator.userAgent || '';
+    return /; wv\)|FBAN|FBAV|Instagram|Line|MiuiBrowser|HuaweiBrowser/i.test(ua);
+}
+
 function sanitizeVapidPublicKey(value) {
     if (!value) return '';
     let key = String(value).trim();
@@ -133,23 +158,88 @@ export const usePushNotifications = () => {
     const [loading, setLoading] = useState(true);
     const [permission, setPermission] = useState('default'); // default, granted, denied
     const [error, setError] = useState('');
-    const [testSending, setTestSending] = useState(false);
+
+    const syncPermissionState = () => {
+        if (typeof Notification === 'undefined') return 'default';
+        const current = Notification.permission;
+        setPermission(current);
+        if (current !== 'granted') {
+            setIsSubscribed(false);
+        }
+        return current;
+    };
 
     useEffect(() => {
-        // 1. Check browser support
-        if ('serviceWorker' in navigator && 'PushManager' in window) {
+        const hasNotificationApi = typeof Notification !== 'undefined';
+        const supportsPush = hasNotificationApi && 'serviceWorker' in navigator && 'PushManager' in window;
+
+        if (!window.isSecureContext) {
+            setIsSupported(false);
+            setPermission(hasNotificationApi ? Notification.permission : 'default');
+            setError('Push notifications require HTTPS. Open the app over a secure connection.');
+            setLoading(false);
+            return;
+        }
+
+        // iOS web push works only from Home Screen installed app (standalone mode).
+        if (supportsPush && isIosDevice() && !isStandaloneMode()) {
+            setIsSupported(false);
+            setPermission(hasNotificationApi ? Notification.permission : 'default');
+            setError('On iPhone/iPad, install Continuum to Home Screen and open it from there to enable push notifications.');
+            setLoading(false);
+            return;
+        }
+
+        if (supportsPush && isAndroidDevice() && isLikelyInAppBrowser()) {
+            setIsSupported(false);
+            setPermission(hasNotificationApi ? Notification.permission : 'default');
+            setError('Push is not supported in this in-app browser. Open Continuum in Chrome/Edge/Firefox on Android.');
+            setLoading(false);
+            return;
+        }
+
+        if (supportsPush) {
             setIsSupported(true);
-            setPermission(Notification.permission);
+            syncPermissionState();
             checkSubscription();
         } else {
             setLoading(false);
         }
+
+        const refreshPermission = () => {
+            const current = syncPermissionState();
+            if (current === 'granted') {
+                checkSubscription();
+            }
+        };
+
+        document.addEventListener('visibilitychange', refreshPermission);
+        window.addEventListener('focus', refreshPermission);
+
+        let permissionStatus;
+        let permissionChangeHandler;
+        if (navigator.permissions?.query) {
+            navigator.permissions.query({ name: 'notifications' }).then((status) => {
+                permissionStatus = status;
+                permissionChangeHandler = () => refreshPermission();
+                status.addEventListener?.('change', permissionChangeHandler);
+            }).catch(() => { });
+        }
+
+        return () => {
+            document.removeEventListener('visibilitychange', refreshPermission);
+            window.removeEventListener('focus', refreshPermission);
+            if (permissionStatus && permissionChangeHandler) {
+                permissionStatus.removeEventListener?.('change', permissionChangeHandler);
+            }
+        };
     }, []);
 
     const checkSubscription = async () => {
         try {
             setError('');
-            if (Notification.permission === 'denied') {
+            const currentPermission = syncPermissionState();
+            if (currentPermission !== 'granted') {
                 setLoading(false);
                 return;
             }
@@ -207,12 +297,22 @@ export const usePushNotifications = () => {
             setLoading(true);
             setError('');
 
-            // 1. Ask Permission
-            const perm = await Notification.requestPermission();
+            if (!window.isSecureContext) {
+                throw new Error('Push notifications require HTTPS');
+            }
+
+            // 1. Ask Permission only if still promptable
+            let perm = Notification.permission;
+            if (perm === 'default') {
+                perm = await Notification.requestPermission();
+            }
             setPermission(perm);
 
             if (perm !== 'granted') {
-                throw new Error('Permission denied');
+                if (perm === 'denied') {
+                    throw new Error('Notification permission is blocked in browser settings');
+                }
+                throw new Error('Notification permission was dismissed');
             }
 
             // 2. Register SW
@@ -292,34 +392,13 @@ export const usePushNotifications = () => {
         }
     };
 
-    const sendTestPush = async () => {
-        try {
-            setError('');
-            setTestSending(true);
-            const { data } = await pushApi.sendTest({
-                title: 'Continuum Test',
-                message: 'Push test from Settings',
-                data: '{"url":"/settings"}',
-            });
-            return data;
-        } catch (err) {
-            console.error('Failed to send test push', err);
-            setError(err?.response?.data?.message || err?.message || 'Failed to send test push');
-            return null;
-        } finally {
-            setTestSending(false);
-        }
-    };
-
     return {
         isSupported,
         isSubscribed,
         permission,
         error,
-        testSending,
         loading,
         enablePush,
-        disablePush,
-        sendTestPush
+        disablePush
     };
 };

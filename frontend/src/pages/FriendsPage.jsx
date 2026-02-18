@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useDialog } from '../context/DialogContext';
 import { PageContainer } from '../components/layout/PageContainer';
-import { Card, CardHeader } from '@/components/ui/card';
 import FriendsList from '../components/friends/FriendsList';
 import FriendRequestsList from '../components/friends/FriendRequestsList';
 import RecentlyMetList from '../components/friends/RecentlyMetList';
@@ -17,6 +17,7 @@ import { useRealTime } from '../context/RealTimeContext';
  * 3. Friends - Accepted friends list with real-time presence
  */
 const FriendsPage = () => {
+    const [searchParams] = useSearchParams();
     const {
         friends,
         pendingRequests: requests,
@@ -30,6 +31,24 @@ const FriendsPage = () => {
     // UI state for pending API actions
     const [pendingActions, setPendingActions] = useState({});
     const dialog = useDialog();
+    const recentlyMetRef = useRef(null);
+    const requestsRef = useRef(null);
+    const friendsRef = useRef(null);
+
+    useEffect(() => {
+        if (isLoading) return;
+        const section = searchParams.get('section');
+        const sectionRef = {
+            recent: recentlyMetRef,
+            requests: requestsRef,
+            friends: friendsRef,
+        }[section || ''];
+
+        if (sectionRef?.current) {
+            sectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, [searchParams, isLoading]);
+
     // ==================== ACTION HANDLERS ====================
 
     /**
@@ -101,14 +120,14 @@ const FriendsPage = () => {
                 {/* Page Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight transition-colors">Friends</h1>
-                        <p className="text-lg text-gray-500 dark:text-slate-400 mt-2 transition-colors font-medium">Manage your connections and requests</p>
+                        <h1 className="text-2xl sm:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight transition-colors">Friends</h1>
+                        <p className="text-base sm:text-lg text-gray-500 dark:text-slate-400 mt-2 transition-colors font-medium">Manage your connections and requests</p>
                     </div>
                 </div>
 
                 {/* Recently Met Section */}
-                <div className="glass-card rounded-2xl overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-                    <div className="p-6 border-b border-gray-200/50 dark:border-gray-800/50">
+                <div id="recently-met" ref={recentlyMetRef} className="glass-card rounded-2xl overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+                    <div className="p-4 sm:p-6 border-b border-gray-200/50 dark:border-gray-800/50">
                         <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Recently Met</h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">People you've connected with in exchange sessions</p>
                     </div>
@@ -120,8 +139,8 @@ const FriendsPage = () => {
                 </div>
 
                 {/* Friend Requests Section */}
-                <div className="glass-card rounded-2xl overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-                    <div className="p-6 border-b border-gray-200/50 dark:border-gray-800/50">
+                <div id="friend-requests" ref={requestsRef} className="glass-card rounded-2xl overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+                    <div className="p-4 sm:p-6 border-b border-gray-200/50 dark:border-gray-800/50">
                         <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Friend Requests</h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Pending requests from other users</p>
                     </div>
@@ -134,8 +153,8 @@ const FriendsPage = () => {
                 </div>
 
                 {/* Friends List Section */}
-                <div className="glass-card rounded-2xl overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-                    <div className="p-6 border-b border-gray-200/50 dark:border-gray-800/50 bg-gray-50/50 dark:bg-gray-800/50">
+                <div id="friends-list" ref={friendsRef} className="glass-card rounded-2xl overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+                    <div className="p-4 sm:p-6 border-b border-gray-200/50 dark:border-gray-800/50 bg-gray-50/50 dark:bg-gray-800/50">
                         <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Your Friends</h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">People you've connected with</p>
                     </div>

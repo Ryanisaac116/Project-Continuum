@@ -1,11 +1,10 @@
 import React from 'react';
 import { useAuth } from '../../auth/AuthContext';
-import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import NotificationCenter from '../NotificationCenter';
 import UserMenu from './UserMenu';
 import { ThemeToggle } from '../ui/ThemeToggle';
-import { Home, ArrowLeftRight, Users, User, ShieldCheck } from 'lucide-react';
+import { Home, ArrowLeftRight, Users, ShieldCheck } from 'lucide-react';
 
 // Mobile Navigation Icon wrapper
 const NavIcon = ({ icon: Icon, active }) => (
@@ -26,15 +25,20 @@ export const AppLayout = ({ children }) => {
     const isActive = (path) => location.pathname === path;
 
     return (
-        <div className="flex flex-col bg-gray-50 dark:bg-black font-sans transition-colors duration-300"
-            style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
+        <div
+            className="flex min-h-dvh flex-col bg-gray-50 dark:bg-black font-sans transition-colors duration-300"
+            style={{ minHeight: 'calc(var(--vh, 1vh) * 100)' }}
+        >
 
 
             {/* Desktop Navbar */}
-            <header className="bg-white/80 dark:bg-black/50 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 sticky top-0 z-30 transition-colors">
+            <header
+                className="bg-white/80 dark:bg-black/50 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 sticky top-0 z-30 transition-colors"
+                style={{ paddingTop: 'env(safe-area-inset-top)' }}
+            >
                 <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
                     <div className="flex h-14 sm:h-16 justify-between items-center">
-                        <div className="flex items-center gap-4 sm:gap-8">
+                        <div className="flex min-w-0 items-center gap-3 sm:gap-8">
                             <Link to="/" className="text-lg sm:text-xl font-bold tracking-tight text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                                 Continuum
                             </Link>
@@ -54,10 +58,10 @@ export const AppLayout = ({ children }) => {
                         </div>
 
                         {user && (
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1.5 sm:gap-3">
                                 <ThemeToggle />
                                 <NotificationCenter />
-                                <div className="h-6 w-px bg-gray-200 dark:bg-slate-800 mx-1"></div>
+                                <div className="hidden sm:block h-6 w-px bg-gray-200 dark:bg-slate-800 mx-1"></div>
                                 <UserMenu />
                             </div>
                         )}
@@ -66,13 +70,16 @@ export const AppLayout = ({ children }) => {
             </header>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto pb-16">
+            <main className="flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
                 {children}
             </main>
 
             {/* Mobile Bottom Navigation */}
-            <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 md:hidden z-20 transition-colors">
-                <div className="flex justify-around items-center h-16 px-2">
+            <nav
+                className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 md:hidden z-20 transition-colors"
+                style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            >
+                <div className="flex justify-around items-center h-16 px-1.5">
                     {navItems.map(item => {
                         const active = isActive(item.path);
                         return (
@@ -83,7 +90,7 @@ export const AppLayout = ({ children }) => {
                                     }`}
                             >
                                 <NavIcon icon={item.icon} active={active} />
-                                <span className={`text-xs mt-1 ${active ? 'font-medium' : ''}`}>
+                                <span className={`text-[11px] mt-1 ${active ? 'font-medium' : ''}`}>
                                     {item.label}
                                 </span>
                             </Link>

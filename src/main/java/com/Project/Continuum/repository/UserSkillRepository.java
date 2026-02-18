@@ -33,5 +33,7 @@ public interface UserSkillRepository extends JpaRepository<UserSkill, Long> {
 
     long countBySkillType(SkillType skillType);
 
+    long countBySkill_Id(Long skillId);
+
     void deleteByUser_Id(Long userId);
 }

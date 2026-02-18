@@ -7,8 +7,6 @@ public interface PushNotificationService {
 
     void removeSubscription(String endpoint);
 
-    boolean hasSubscription(Long userId);
-
     String getPublicKey();
 
     void sendToUser(Long userId, String title, String body, String data);
